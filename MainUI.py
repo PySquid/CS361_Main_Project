@@ -345,7 +345,7 @@ class Help:
         self.submenu_help = {}                 # KEY: submenu name string / VALUE: help features for that menu
 
     # ----- METHODS -----
-    def add_comment(self, title, text) -> bool:
+    def add_comment(self) -> bool:
         """
         Adds a comment to the library comment base
 
@@ -353,12 +353,32 @@ class Help:
         :param text: the narrative text of the comment
         :return:
         """
-        pass
+        title = input("What is the title of your comment?")
+        subject = input("What is the subject of your comment?")
+        question = input("Is your comment a Question? ('y' for 'yes' / 'n' for 'no'")
+        text = input("Enter the text of your comment now, and press 'Enter' when done...")
 
-    def del_comment(self):
-        """"""
+        new_comment = Comment(title, subject, text, question)
+        self.comments.append(new_comment)
+        return True
 
-        pass
+    def del_comment(self) -> None:
+        """
+        Deletes a user comment.
+        :return:
+        """
+
+        target = int(input("Enter the number of the comment you wish to delete: "))
+
+        # Subtract 1 to account for 0-position in the array
+        target -= 1
+
+        print(f"The comment you've selected is : {self.comments[target]}")
+
+        choice = input("To proceed with deletion, type 'delete' and press enter.  Any other input will cancel.")
+
+        if choice == 'delete':
+            del self.comments[target]
 
     def add_faq(self, title, question, answer):
         """"""
