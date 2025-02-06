@@ -7,6 +7,7 @@
 import socket
 import pickle
 import random
+import os
 
 # ---------- Classes ----------
 class Book:
@@ -392,7 +393,14 @@ class Help:
         question = input("Is your comment a Question? ('y' for 'yes' / 'n' for 'no'")
         text = input("Enter the text of your comment now, and press 'Enter' when done...")
 
-        new_comment = Comment(title, subject, text, question)
+        #              _____ ----- !!!!! UNDER CONSTRUCTION !!!!! ----- _____
+        answered = input("Is this comment a question? ('y' for 'yes' / 'n' for 'no'")
+        if answered == 'y':
+            answered = False
+        else:
+            answered = None
+
+        new_comment = Comment(title, subject, text, question, answered)
         self.comments.append(new_comment)
         return True
 
@@ -430,6 +438,7 @@ class Help:
 
         MAIN | SEARCH: type?, results | ADD | DELETE: find, results, select, confirm | HELP
         """
+        #              _____ ----- !!!!! UNDER CONSTRUCTION !!!!! ----- _____
         menu_main = ""
         menu_search = ""
         menu_add = ""
@@ -656,8 +665,8 @@ def main():
             print("-----------------------------------------------------------------------------------\n \n")
             continue
 
+        # --- DELETE A BOOK ---
         elif choice == '2':
-            # ----- DELETE A BOOK -----
 
             # reference Menu for this option:
             """
@@ -683,7 +692,7 @@ def main():
                 matches = None
 
                 # HELP
-                if selection == ('Help' or 'help' or  'HELP' or '#Help'):
+                if selection == ('Help' or 'help' or 'HELP' or '#Help'):
                     pass
 
                 # RETURN TO MAIN
@@ -739,7 +748,7 @@ def main():
 
                         collection.book_by_serial(i).view()
                         print("\n")
-                        order +=1
+                        order += 1
 
                     found_it = int(input("Is the book you're looking for in the results? (1: yes / 2: no)  "))
                     if found_it == 1:
@@ -780,8 +789,165 @@ def main():
             # feed back into the Main menu
             continue
 
+        # --- SEARCH FOR BOOK---
         elif choice == '3':
-            pass
+            # Show the user the Search menu
+            ShowMenu('search')
+
+            # CHOICE LOOP
+            while True:
+                selection = int(input("Choice:  "))
+
+                # Reset variables
+                match = None
+                matches = None
+
+                # HELP
+                if selection == ('Help' or 'help' or 'HELP' or '#Help'):
+                    pass
+
+                # RETURN TO MAIN
+                if selection == ('Return' or 'return' or '#Return'):
+                    # return to main menu
+                    break
+
+                #              _____ ----- !!!!! UNDER CONSTRUCTION !!!!! ----- _____
+                # ACCESS RECYCLE BIN
+                if selection == ('RecycleBin' or 'recyclebin' or 'Recyclebin' or '#RecycleBin'):
+                    pickled_files = os.listdir()
+
+                    # Find all pickled files in local directory of UI/CMS Monolith
+                    pickled_only = []
+                    for f in pickled_files:
+                        if f.endswith(".pickle"):
+                            pickled_only.append(f)
+
+                    # Present user with available recycled files
+                    print("You are accessing recycled books.  Recycle Bin contents are: \n")
+
+                    # list all pickle files
+                    counter = 0
+                    for f in pickled_only:
+                        counter += 1
+                        print(f"[File # {counter}: {f}")
+
+                    # prompt user to select a recycled book or return to main
+                    found = int(input("Enter File # to select/recover a file, or enter '0' to return to Main Menu"))
+                    if found == 0:
+                        continue
+                    else:
+                        # access and load the specified recycled pickle file
+                        try:
+                            with open(pickled_only[found - 1], "rb") as infile:
+                                recover_file = pickle.load(infile)
+
+                        # $$$ TESTING $$$: provide info about errors
+                        except AttributeError:
+                            return 'FAIL-Attribute'
+                        except EOFError:
+                            return 'FAIL-EOF'
+                        except IndexError:
+                            return 'FAIL-Index'
+
+                        # Show the book recovery candidate to the user
+                        print(f"You have accessed the following book Title: \n")
+                        recover_file.view()
+
+                        # Confirm user wishes to recover this book
+                        confirm = input("To recover this book to the library, type 'recover', else hit 'enter': ")
+
+                        # RECOVER RECYCLED FILE TO COLLECTION
+                        if confirm == 'recover':
+
+                            #              _____ ----- !!!!! UNDER CONSTRUCTION !!!!! ----- _____
+                            pass
+
+                        else:
+                            continue
+
+                # TITLE SEARCH
+                if selection == 1:
+                    search_term = input("Type the title, or partial title of the book you want to find: ")
+                    matches = [sn for titles, sn in collection.titles.items() if search_term in titles]
+
+                # AUTHOR SEARCH
+                elif selection == 2:
+                    search_term = input("Type the Author name, or partial name of the book you want to find: ")
+                    matches = [sn for authors, sn in collection.authors.items() if search_term in authors]
+
+                # SERIAL SEARCH
+                elif selection == 3:
+                    search_term = input("Type the exact Library serial number of the book you want to find:  ")
+                    match = collection.serials[search_term]
+
+                # ERROR
+                else:
+                    # notify user of mistake, and allow them to re-enter their choice
+                    print('Invalid selection, try again...')
+                    continue
+
+                # SEARCH RESULTS
+                if match:
+                    print("Is the book below the one you are looking for? (1: yes / 2: no ")
+                    match.get_title()
+                    found = int(input())
+                    if found == 1:
+                        print("ACQUISITION CONFIRMED! Displaying your book now...\n")
+                        match.view()
+                        input("Press 'enter' to return to the main menu... ")
+                        break
+
+                # Display matching books to user
+                print("Your search yielded the following results: \n")
+
+                # 'order' assigns a 1-up number to each book in the list to aid in identification
+                order = 0
+                if matches:
+                    for i in matches:
+                        print(f"BOOK NUMBER {order + 1}")
+                        collection.book_by_serial(i).view()
+                        print("\n")
+                        order += 1
+
+                    found_it = int(input("Is the book you're looking for in the results? (1: yes / 2: no)  "))
+                    if found_it == 1:
+                        acquired = int(input("Enter the BOOK NUMBER of the book you want to view: "))
+                        print("This is the book title you have selected: \n")
+                        print(collection.book_by_serial(matches[acquired - 1]).get_title())
+                        acquisition = int(input("Is this the book you want to view? (1: yes / 2: no)"))
+                        if acquisition == 1:
+                            print("Displaying your book information now...\n")
+                            collection.book_by_serial(matches[acquired - 1]).view()
+                            input("\nPress 'enter' to return  to the main menu")
+                            break
+
+                        # This is not the book you want to view...what now?
+                        else:
+                            where_now = int(input("Ok. Where to now? (1: main / 2: search again)"))
+                            if where_now == 1:
+                                break
+                            else:
+                                continue
+                    # Book not in results...what to do...
+                    else:
+                        where_now = int(input("Ok. Where to now? (1: main / 2: search again)"))
+                        if where_now == 1:
+                            break
+                        else:
+                            continue
+
+                else:
+                    print("(No books found matching your terms)")
+                    try_again = int(input("Search again? (1: yes / 2: no)"))
+                    if try_again == 1:
+                        # back to choice loop: how to find book to delete
+                        continue
+                    else:
+                        # Return to main
+                        break
+
+            # feed back into the Main menu
+            continue
 
         elif choice == '4':
             pass
