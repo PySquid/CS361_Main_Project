@@ -11,23 +11,57 @@ import random
 # ---------- Classes ----------
 class Book:
     def __init__(self, title, author, isbn, year, publisher, price):
-        """initializes a new network monitor"""
-        self.title = title
-        self.author = author
-        self.isbn = isbn
-        self.serial = None          # gets assigned by Library once 'added'
-        self.year = year
-        self.publisher = publisher
-        self.price = price
-        self.rating = None
-        self.summary = None
+        """initializes a new network monitor.
+            All numbers EXCEPT the serial number (string) and price (float) are integers"""
+
+        self.title = title          # string
+        self.author = author        # string
+        self.isbn = isbn            # this number is an Integer
+        self.serial = None          # string which gets assigned by Library once 'added'
+        self.year = year            # integer
+        self.publisher = publisher  # string
+        self.price = price          # integer
+        self.rating = None          # integer
+        self.summary = None         # string
 
     # ----- METHODS -----
-    def view(self):
+    def get_info(self):
         """Returns the book's main attributes as a dictionary"""
 
         return({'title': self.title, 'author': self.author, 'isbn': self.isbn, 'serial': self.serial, 'year': self.year,
                 'publisher': self.publisher, 'price': self.price, 'rating': self.rating, 'summary': self.summary})
+
+    def view(self):
+        """"""
+        print(f"Title: {self.title}")
+        print(f"Author: {self.author}")
+        print(f"ISBN: {self.isbn}")
+        print(f"Publisher: {self.publisher}")
+        print(f"Year: {self.year}")
+        print(f"Price: {self.price}")
+        print(f"Serial: {self.serial}")
+        if self.rating:
+            print(f"Rating: {self.rating}")
+        else:
+            print(f"Rating: (Not yet rated)")
+        if self.summary:
+            print(f"Summary: {self.summary}")
+        else:
+            print(f"Summary: (Not yet summarized)")
+
+    def get_title(self) -> str:
+        """
+        Returns the Book's title
+        :return: title string of the instantiated Book object
+        """
+        return self.title
+
+    def get_serial(self) -> str:
+        """
+        Takes no parameters and just returns the book's serial number
+        :return: a serial number string
+        """
+        return self.serial
 
     def edit(self, old, new) -> bool:
         """
@@ -165,13 +199,13 @@ class Library:
 
         # - MAP LIBRARY AUTHOR(S) TO SERIAL -
         if new.author not in self.authors.keys():
-            self.authors.update({new.author: [new.serial]})
+            self.authors.update({new.author: new.serial})
         else:
             self.authors[new.author].append(new.serial)
 
         # - MAP LIBRARY TITLE(S) TO SERIAL -
         if new.title not in self.titles.keys():
-            self.titles.update({new.title: [new.serial]})
+            self.titles.update({new.title: new.serial})
         else:
             self.titles[new.title].append(new.serial)
 
@@ -460,8 +494,8 @@ def ShowMenu(choice):
     4) Help			            [if you are having trouble or questions]
     5) Exit			            [closes down the program]
 
-    !!! NOTE: for non-number menus, type ‘#’ + (menu option) to access
-    EXAMPLE: ‘#help’ will take you to the help sub-menu of a particular page, if available
+    !!! NOTE1: you may type 'help' at any menu to be taken to the help menu
+        NOTE2: you may type 'return' at any non-main menu to return to Main
 
     -----------
     """
@@ -481,7 +515,7 @@ def ShowMenu(choice):
     ISBN:
     Publisher:
     Publication Year:
-    Subject:
+    Price:
     -----------------------------------------------------------------------------------
     """
     deleteMenu = """
@@ -489,10 +523,9 @@ def ShowMenu(choice):
     Delete a Book: 
     Please choose how you wish to locate the book you wish to delete:
 
-    1) Title		[]
-    2) Author		[]
-    3) ISBN		[]
-    4) Library S/N	[]
+    1) Title		    []
+    2) Author		    []
+    3) Library S/N	    []
 
     #Help			[if you are having trouble or questions]
     #Return			[returns to main menu]
@@ -504,12 +537,12 @@ def ShowMenu(choice):
     searchMenu = """
     -----------------------------------------------------------------------------------
     Find a Book: 
-    Please choose how you wish to locate the book:
+    Please choose how you wish to locate the book, or type 'RecycleBin' for
+     recently deleted books:
 
-    1) Title		[]
-    2) Author		[]
-    3) ISBN		[]
-    4) Library S/N	[]
+    1) Title		        []
+    2) Author		        []
+    3) Library S/N	        []
 
     #RecycleBin		[find/recover recently deleted books]
     #Help			[if you are having trouble or questions]
@@ -524,15 +557,14 @@ def ShowMenu(choice):
     Help Menu: 
     This is the help menu, please select from the options below:
 
-    1) FAQ			[Frequently Asked Questions]
+    1) FAQ			        [Frequently Asked Questions]
     2) Leave a Comment		[Write your own Comment]
-    2) View User Comments	[Leave and read user comments]
-    3) Help			[if you are having trouble or questions]
+    3) View User Comments	[Leave and read user comments]
     4) Return to Main		[returns to main menu]
 
     !!! NOTE: questions asked in option (2) ‘Leave a Comment’ may not
-    be answered quickly, and are only answered periodically by the Admin
-    or by others users.  For quick answers, check the FAQs.
+              be answered quickly, and are only answered periodically by the Admin
+              or by others users.  For quick answers, check the FAQs.
 
     -----------
     Choice: 
@@ -556,7 +588,7 @@ def ShowMenu(choice):
 
 # ---------- Main: User Interface ----------
 def main():
-    """fs
+    """
     USER INTERFACE:
         This function provides the main user interface to the Library
     """
@@ -575,26 +607,188 @@ def main():
         print("    ---      NO UPDATES     ---")
         print("    ---------------------------")
 
-    # print the main menu
-    ShowMenu('main')
-
     # Initiate the main program loop
     choice = None
 
-    while choice != 5:
+    while choice != '5':
+
+        # print the main menu
+        ShowMenu('main')
+
         choice = input("Choice:  ")
 
         if choice == '1':
-            pass
-        if choice == '2':
-            pass
-        if choice == '3':
-            pass
-        if choice == '4':
-            pass
-        if choice == '5':
-            print("Goodbye!")
+            # ----- ADD A BOOK -----
+            # Book parameters: [title, author, isbn, year, publisher, price]
+
+            # Print the 'Add a Book' Menu
+            ShowMenu('add')
+
+            # reference Menu for this option
+            """
+            Add a Book: 
+            Please fill in the book details below:
+        
+            ***Enter the book’s Information below…
+        
+            #Help			[if you are having trouble or questions]
+            #Return			[returns to main menu]
+                    --------------------- BOOK INFORMATION --------------------- 
+            Title: 
+            Author:
+            ISBN:
+            Publisher:
+            Publication Year:
+            Price:
+            -----------------------------------------------------------------------------------"""
+
+            title = input("Please enter the Book's Title:  ")
+            author = input("Please enter the Book's Author:  ")
+            isbn = int(input("Please enter the Book's ISBN (without dashes):  "))
+            pub = input("Please enter the Book's Publisher:  ")
+            year = int(input("Please enter the Book's publication year:  "))
+            price = float(input("Please enter the Book's price without $ sign (ex: 5.25):  $"))
+
+            # Create a new book and add it to the Library collection
+            collection.add_book(Book(title, author, isbn, pub, year, price))
+
+            print("Book entered and recorded, thank you!")
+            print("-----------------------------------------------------------------------------------\n \n")
             continue
+
+        elif choice == '2':
+            # ----- DELETE A BOOK -----
+
+            # reference Menu for this option:
+            """
+            Delete a Book: 
+            Please choose how you wish to locate the book you wish to delete:
+        
+            1) Title		    []
+            2) Author		    []
+            3) Library S/N	    []
+        
+            #Help			[if you are having trouble or questions]
+            #Return			[returns to main menu]"""
+
+            # Show the user the Deletion menu
+            ShowMenu('delete')
+
+            # CHOICE LOOP
+            while True:
+                selection = int(input("Choice:  "))
+
+                # Reset variables
+                match = None
+                matches = None
+
+                # HELP
+                if selection == ('Help' or 'help' or  'HELP' or '#Help'):
+                    pass
+
+                # RETURN TO MAIN
+                if selection == ('Return' or 'return' or '#Return'):
+                    # return to main menu
+                    break
+
+                # TITLE SEARCH
+                if selection == 1:
+                    search_term = input("Type the title, or partial title: ")
+                    matches = [sn for titles, sn in collection.titles.items() if search_term in titles]
+
+                # AUTHOR SEARCH
+                elif selection == 2:
+                    search_term = input("Type the Author name, or partial name: ")
+                    matches = [sn for authors, sn in collection.authors.items() if search_term in authors]
+
+                # SERIAL SEARCH
+                elif selection == 3:
+                    search_term = input("Type the exact Library serial number of the book to delete:  ")
+                    match = collection.serials[search_term]
+
+                # ERROR
+                else:
+                    # notify user of mistake, and allow them to re-enter their choice
+                    print('Invalid selection, try again...')
+                    continue
+
+                # RESULTS
+                if match:
+                    print("Is the book below the one you wish to delete? (1: yes / 2: no ")
+                    match.view()
+                    doom = int(input())
+                    if doom == 1:
+                        recycle = input("Are you SURE you want to delete it? Type 'delete' to confirm")
+                        if recycle == 'delete':
+                            collection.delete_book(match.get_serial())
+                            print("Deletion confirmed!")
+                            print("Book will remain in recycle bin for a limited time, and can be"
+                                  "recovered by performing a Book Search of recycled books.")
+
+                            # Return to main
+                            break
+
+                # Display matching books to user
+                print("Your search yielded the following results: \n")
+
+                # 'order' assigns a 1-up number to each book in the list to aid in identification
+                order = 0
+                if matches:
+                    for i in matches:
+                        print(f"BOOK NUMBER {order+1}")
+
+                        collection.book_by_serial(i).view()
+                        print("\n")
+                        order +=1
+
+                    found_it = int(input("Is the book you're looking for in the results? (1: yes / 2: no)  "))
+                    if found_it == 1:
+                        doom = int(input("Enter the BOOK NUMBER of the book you wish to delete: "))
+                        print("This is the book title you have selected: \n")
+                        print(collection.book_by_serial(matches[doom-1]).get_title())
+                        recycle = int(input("Is this the book you want to delete? (1: yes / 2: no)"))
+                        if recycle == 1:
+                            confirm = input("Are you SURE you want to delete it? Type 'delete' to confirm:  \n")
+                            if confirm == 'delete':
+                                collection.delete_book(matches[doom-1])
+                                print("Deletion confirmed!")
+                                print("Book will remain in recycle bin for a limited time, and can be "
+                                      "recovered by performing a Book Search of recycled books.")
+
+                                # Return to main
+                                break
+                        else:
+                            where_now = int(input("Whew, close one! Where to now? (1: main / 2: try again)"))
+                            if where_now == 1:
+                                break
+                            else:
+                                continue
+
+                else:
+                    print("(No books found matching your terms)")
+                    try_again = int(input("Try another search to delete? (1: yes / 2: no)"))
+                    if try_again == 1:
+                        # back to choice loop: how to find book to delete
+                        continue
+                    else:
+                        # Return to main
+                        break
+
+                # return to main
+                break
+
+            # feed back into the Main menu
+            continue
+
+        elif choice == '3':
+            pass
+
+        elif choice == '4':
+            pass
+
+        elif choice == '5':
+            print("Goodbye!")
+            break
 
 
 # Execute Program
