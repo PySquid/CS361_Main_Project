@@ -59,10 +59,18 @@ class Book:
 
     def get_serial(self) -> str:
         """
-        Takes no parameters and just returns the book's serial number
+        Takes no parameters and just returns the book's serial number string
         :return: a serial number string
         """
         return self.serial
+
+    def get_author(self) -> str:
+        """
+        Takes no parameters and just returns the book's author string
+        :return: this book's author string
+        """
+
+        return self.author
 
     def edit(self, old, new) -> bool:
         """
@@ -95,6 +103,25 @@ class Library:
         self.banner = ""                        # Banner at main menu with admin notes and update information
 
     # ----- METHODS -----
+    def insert_book(self, in_book):
+        """
+        Takes a book as a parameter, then adds the book to the collection, deconflicting the serial as well
+        :param in_book: takes a Book object
+        :return: None
+        """
+
+        available = False
+        while not available:
+            if in_book.get_serial() not in self.serials.keys():
+                self.serials[in_book.get_serial()] = in_book
+                self.titles[in_book.get_title()] = in_book.get_serial()
+                self.authors[in_book.get_author()] = in_book.get_serial()
+                available = True
+            else:
+                new_serial = in_book.get_serial()
+                new_serial += '1'
+                in_book.edit('serial', new_serial)
+
     def book_by_serial(self, target) -> Book:
         """
         Returns a book object based on serial number
@@ -549,9 +576,9 @@ def ShowMenu(choice):
     Please choose how you wish to locate the book, or type 'RecycleBin' for
      recently deleted books:
 
-    1) Title		        []
-    2) Author		        []
-    3) Library S/N	        []
+    1) Title		        [BASIC: full or partial keyword search]
+    2) Author		        [BASIC: full or partial keyword search]
+    3) Library S/N	        [ADVANCED: exact, full serial number is required to be entered]
 
     #RecycleBin		[find/recover recently deleted books]
     #Help			[if you are having trouble or questions]
@@ -626,8 +653,8 @@ def main():
 
         choice = input("Choice:  ")
 
+        # --- ADD A BOOK ---
         if choice == '1':
-            # ----- ADD A BOOK -----
             # Book parameters: [title, author, isbn, year, publisher, price]
 
             # Print the 'Add a Book' Menu
@@ -680,11 +707,12 @@ def main():
             #Help			[if you are having trouble or questions]
             #Return			[returns to main menu]"""
 
-            # Show the user the Deletion menu
-            ShowMenu('delete')
-
             # CHOICE LOOP
             while True:
+                # Show the user the Deletion menu
+                ShowMenu('delete')
+
+                # Prompt the user to select from this menu
                 selection = int(input("Choice:  "))
 
                 # Reset variables
@@ -791,12 +819,13 @@ def main():
 
         # --- SEARCH FOR BOOK---
         elif choice == '3':
-            # Show the user the Search menu
-            ShowMenu('search')
-
             # CHOICE LOOP
             while True:
-                selection = int(input("Choice:  "))
+                # Show the user the Search menu
+                ShowMenu('search')
+
+                # Prompt user to select from menu
+                selection = input("Choice:  ")
 
                 # Reset variables
                 match = None
@@ -832,7 +861,7 @@ def main():
                         print(f"[File # {counter}: {f}")
 
                     # prompt user to select a recycled book or return to main
-                    found = int(input("Enter File # to select/recover a file, or enter '0' to return to Main Menu"))
+                    found = int(input("Enter File # to select/recover a file, or enter '0' to return to Main Menu\n"))
                     if found == 0:
                         continue
                     else:
@@ -859,26 +888,35 @@ def main():
                         # RECOVER RECYCLED FILE TO COLLECTION
                         if confirm == 'recover':
 
-                            #              _____ ----- !!!!! UNDER CONSTRUCTION !!!!! ----- _____
-                            pass
+                            # insert the book back into the collection
+                            collection.insert_book(recover_file)
+                            print("SUCCESSFUL RECOVERY!")
+
+                            # delete the recovered pickle file
+                            print(f"deleting {recover_file.get_serial()}.pickle...")
+                            os.remove(f"{recover_file.get_serial()}.pickle")
 
                         else:
                             continue
 
                 # TITLE SEARCH
-                if selection == 1:
+                if selection == '1':
                     search_term = input("Type the title, or partial title of the book you want to find: ")
                     matches = [sn for titles, sn in collection.titles.items() if search_term in titles]
 
                 # AUTHOR SEARCH
-                elif selection == 2:
+                elif selection == '2':
                     search_term = input("Type the Author name, or partial name of the book you want to find: ")
                     matches = [sn for authors, sn in collection.authors.items() if search_term in authors]
 
                 # SERIAL SEARCH
-                elif selection == 3:
+                elif selection == '3':
                     search_term = input("Type the exact Library serial number of the book you want to find:  ")
-                    match = collection.serials[search_term]
+                    if search_term in collection.serials.keys():
+                        match = collection.serials[search_term]
+                    else:
+                        input("Serial not found, press 'enter' to continue...")
+                        continue
 
                 # ERROR
                 else:
@@ -949,6 +987,7 @@ def main():
             # feed back into the Main menu
             continue
 
+        # --- GET HELP ---
         elif choice == '4':
             pass
 
