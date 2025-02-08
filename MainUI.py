@@ -101,6 +101,7 @@ class Library:
         self.serials = {}                       # *** MAIN COLLECTION *** ...... serial number to book object
         self.recycled = {}                      # keys are serial numbers, values are filename strings
         self.banner = ""                        # Banner at main menu with admin notes and update information
+        self.help_level = 2                     # degree of menu help (1: Basic - 3: Advanced)
 
     # ----- METHODS -----
     def insert_book(self, in_book):
@@ -320,7 +321,7 @@ class Library:
 
 
 class Comment:
-    def __init__(self, title, subject, text, question, answered) -> (bool or None):
+    def __init__(self, title, subject, text, question) -> (bool or None):
         """
         Defines an object to model a user comment
 
@@ -328,19 +329,12 @@ class Comment:
         :param subject:     comment subject
         :param text:        narrative text of comment
         :param question:    'True' if comment is a question, 'False' if just a comment.
-        :param answered:    'True' if question has been answered
         """
 
         self.title = title
         self.subject = subject
         self.text = text
         self.question = question
-
-        # 'answered' is only True/False if comment is a question, else it is None
-        if question:
-            self.answered = False
-        else:
-            self.answered = None
 
 class Faq:
     def __init__(self, subject, question, answer) -> (bool or None):
@@ -402,9 +396,10 @@ class Faq:
 
 class Help:
     def __init__(self):
-        self.comments = []                     # holds comment objects
-        self.faq = []                          # holds Faq objects
-        self.submenu_help = {}                 # KEY: submenu name string / VALUE: help features for that menu
+        self.comments = []                  # holds comment objects
+        self.questions = []                 # holds questions
+        self.faqs = []                       # holds Faq objects
+        self.assistance = 2                 # level of help offered to user (1 BASIC / 2 NORMAL / 3 ADVANCED)
 
     # ----- METHODS -----
     def add_comment(self) -> bool:
@@ -417,17 +412,9 @@ class Help:
         """
         title = input("What is the title of your comment?")
         subject = input("What is the subject of your comment?")
-        question = input("Is your comment a Question? ('y' for 'yes' / 'n' for 'no'")
         text = input("Enter the text of your comment now, and press 'Enter' when done...")
 
-        #              _____ ----- !!!!! UNDER CONSTRUCTION !!!!! ----- _____
-        answered = input("Is this comment a question? ('y' for 'yes' / 'n' for 'no'")
-        if answered == 'y':
-            answered = False
-        else:
-            answered = None
-
-        new_comment = Comment(title, subject, text, question, answered)
+        new_comment = Comment(title, subject, text)
         self.comments.append(new_comment)
         return True
 
@@ -436,6 +423,13 @@ class Help:
         Deletes a user comment.
         :return:
         """
+
+        # Display all comments by title
+        print("COMMENTS:")
+        print("---------")
+        counter = 0
+        for c in self.comments:
+            print(f"{counter}) {c.title}")
 
         target = int(input("Enter the number of the comment you wish to delete: "))
 
@@ -448,32 +442,36 @@ class Help:
 
         if choice == 'delete':
             del self.comments[target]
+        else:
+            return
 
-    def add_faq(self, title, question, answer):
+    def add_question(self) -> None:
         """"""
 
         pass
 
-    def edit_faq(self, num):
+    def del_question(self):
         """"""
 
         pass
 
-    def submenu_help(self, submenu):
+    def add_faq(self):
         """
-        Docscring
+        Adds a FAQ to the library comment base
+        :return: None
+        """
 
-        MAIN | SEARCH: type?, results | ADD | DELETE: find, results, select, confirm | HELP
-        """
-        #              _____ ----- !!!!! UNDER CONSTRUCTION !!!!! ----- _____
-        menu_main = ""
-        menu_search = ""
-        menu_add = ""
-        menu_delete = ""
-        menu_help = ""
-        menu_faq = ""
-        menu_comments = ""
-        menu_results = ""
+        subject = input("What is the subject of this FAQ?")
+        question = input("Please enter the question of your FAQ?")
+        answer = input("Enter the answer to the question now, and press 'Enter' when done...")
+
+        new_faq = Faq(subject, question, answer)
+        self.faqs.append(new_faq)
+
+        return None
+
+    def del_faq(self, num):
+        """"""
 
         pass
 
@@ -512,7 +510,7 @@ def book_banner() -> None:
       ^--^---'--^---^-^--^--^---'--^---^-^-^-==-^--^---^-'hjw
 """)
 
-def ShowMenu(choice):
+def ShowMenu(choice, help_level):
     """
     Prints the menu specified to screen
 
@@ -520,21 +518,71 @@ def ShowMenu(choice):
     :return:
     """
 
+    mainMenu1 = """
+        ---------- Main Menu ---------- 
+        This is the main menu, please select from the options below:
+
+        1) Add a book		        [add a new book to the collection]
+        2) Delete a book		    [find and remove an existing book]
+        3) Search for a book		[find an existing book and view its details]
+        4) Help			            [if you are having trouble or questions]
+        5) Exit			            [closes down the program]
+
+        !!! NOTE1: you may type 'help' at any menu to be taken to the help menu
+            NOTE2: you may type 'return' at any non-main menu to return to Main
+        -----------
+        """
+
     mainMenu = """
     ---------- Main Menu ---------- 
     This is the main menu, please select from the options below:
 
-    1) Add a book		        [add a new book to the collection]
-    2) Delete a book		    [find and remove an existing book]
-    3) Search for a book		[find an existing book and view its details]
-    4) Help			            [if you are having trouble or questions]
-    5) Exit			            [closes down the program]
+    1) Add a new book to the Library		        
+    2) Delete a book from the Library		     
+    3) Search for a book and view info		
+    4) Help Menu			            
+    5) Exit			            
 
     !!! NOTE1: you may type 'help' at any menu to be taken to the help menu
         NOTE2: you may type 'return' at any non-main menu to return to Main
-
     -----------
     """
+
+    mainMenu3 = """
+        ---------- Main Menu ---------- 
+        This is the main menu, please select from the options below:
+
+        1) Add a book		        
+        2) Delete a book		    
+        3) Search for a book		
+        4) Help			            
+        5) Exit			            
+
+        # Help
+        # Return
+        -----------
+        """
+
+    addMenu1 = """
+        -----------------------------------------------------------------------------------
+        Add a Book: 
+        Please fill in the book details below, you will be prompted for each, one at a time:
+
+        ***Enter the book’s Information below…
+
+        #Help			        [if you are having trouble or questions]
+        #Return			        [returns to main menu]
+
+        --------------------- BOOK INFORMATION --------------------- 
+        Title:                  [Text title, spaces allowed]
+        Author:                 [Text author, spaces allowed, capitalized or not]
+        ISBN:                   [Enter as a number, without spaces or dashes]
+        Publisher:              [Text name of the company who published the book]
+        Publication Year:       [Numerical, 4-digit year which this edition of the book was published]
+        Price:                  [3-digit monetary cost in American Dollars, without dollar sign]
+        -----------------------------------------------------------------------------------
+        """
+
     addMenu = """
     -----------------------------------------------------------------------------------
     Add a Book: 
@@ -554,31 +602,97 @@ def ShowMenu(choice):
     Price:
     -----------------------------------------------------------------------------------
     """
+
+    addMenu3 = """
+        -----------------------------------------------------------------------------------
+        Add a Book: 
+        Please fill in the book details below:
+
+        ***Enter the book’s Information below…
+
+        #Help			
+        #Return			
+        """
+
+    deleteMenu1 = """
+        -----------------------------------------------------------------------------------
+        Delete a Book: 
+        Please choose how you wish to locate the book you wish to delete:
+
+        1) Title		    [BASIC: keyword search for the book to delete by its Title]
+        2) Author		    [BASIC: keyword search for the book to delete by its Author]
+        3) Library S/N	    [ADVANCED: search for the book by its exact serial number]
+
+        # Help			    [Questions, Leave Comments, FAQ's, change your menu settings]
+        # Return			[returns to main menu]
+
+        -----------
+        Choice: 
+        -----------------------------------------------------------------------------------
+        """
+
     deleteMenu = """
     -----------------------------------------------------------------------------------
     Delete a Book: 
     Please choose how you wish to locate the book you wish to delete:
 
-    1) Title		    []
-    2) Author		    []
-    3) Library S/N	    []
+    1) Title                [BASIC]
+    2) Author		        [BASIC]
+    3) Library S/N	        [ADVANCED]
 
-    #Help			[if you are having trouble or questions]
-    #Return			[returns to main menu]
+    # Help Menu			        
+    # Return to Main		        
 
     -----------
     Choice: 
     -----------------------------------------------------------------------------------
     """
+
+    deleteMenu3 = """
+        -----------------------------------------------------------------------------------
+        Delete a Book: 
+        Please choose how you wish to locate the book you wish to delete:
+
+        1) Title		  
+        2) Author		  
+        3) Library S/N	  
+
+        #Help Menu			
+        #Return	to Main	
+
+        -----------
+        Choice: 
+        -----------------------------------------------------------------------------------
+        """
+
+    searchMenu1 = """
+        -----------------------------------------------------------------------------------
+        Find a Book: 
+        Please choose how you wish to locate the book, or type 'RecycleBin' to search for and
+         recover recently deleted books:
+
+        1) Title		        [BASIC: full or partial keyword search by book's Title]
+        2) Author		        [BASIC: full or partial keyword search by book's Author]
+        3) Library S/N	        [ADVANCED: exact, full serial number is required to be entered]
+
+        #RecycleBin		[find/recover recently deleted books]
+        #Help			[if you are having trouble or questions]
+        #Return			[returns to main menu]
+
+        -----------
+        Choice: 
+        -----------------------------------------------------------------------------------
+        """
+
     searchMenu = """
     -----------------------------------------------------------------------------------
     Find a Book: 
     Please choose how you wish to locate the book, or type 'RecycleBin' for
      recently deleted books:
 
-    1) Title		        [BASIC: full or partial keyword search]
-    2) Author		        [BASIC: full or partial keyword search]
-    3) Library S/N	        [ADVANCED: exact, full serial number is required to be entered]
+    1) Title Search		            [BASIC]
+    2) Author Search		        [BASIC]
+    3) Library S/N Search	        [ADVANCED]
 
     #RecycleBin		[find/recover recently deleted books]
     #Help			[if you are having trouble or questions]
@@ -588,38 +702,123 @@ def ShowMenu(choice):
     Choice: 
     -----------------------------------------------------------------------------------
     """
+
+    searchMenu3 = """
+        -----------------------------------------------------------------------------------
+        Find a Book: 
+        Please choose how you wish to locate the book, or type 'RecycleBin' for
+         recently deleted books:
+
+        1) Title Search		        
+        2) Author Search		        
+        3) Library S/N Search        
+
+        #RecycleBin / Un-delete		
+        #Help			
+        #Return to Main			
+
+        -----------
+        Choice: 
+        -----------------------------------------------------------------------------------
+        """
+
+    helpMenu1 = """
+        -----------------------------------------------------------------------------------
+        Help Menu: 
+        This is the help menu, please select from the options below:
+
+        1) FAQ			        [QUICK ANSWERS: Frequently Asked Questions, with answers posted]
+        2) Leave a Comment		[Write your own Comment for the Admin and other users]
+        3) View User Comments	[Read user comments]
+        4) Ask a Question       [SLOW*: leave a question request for the Admin or other users to answer]
+        5) Return to Main		[returns to main menu]
+
+        !!! NOTE: questions asked in option (4) ‘Leave a Comment’ may not
+                  be answered quickly, and are only answered periodically by the Admin
+                  or by others users.  For quick answers, check the FAQs.
+
+        -----------
+        Choice: 
+        -----------------------------------------------------------------------------------
+        """
+
     helpMenu = """
     -----------------------------------------------------------------------------------
     Help Menu: 
     This is the help menu, please select from the options below:
 
-    1) FAQ			        [Frequently Asked Questions]
-    2) Leave a Comment		[Write your own Comment]
-    3) View User Comments	[Leave and read user comments]
-    4) Return to Main		[returns to main menu]
+        1) FAQ			        
+        2) Leave a Comment		[QUICK / BASIC answers]
+        3) View User Comments	
+        4) Ask a Question       [SLOW / DETAILED answers]
+        5) Return to Main		
 
-    !!! NOTE: questions asked in option (2) ‘Leave a Comment’ may not
-              be answered quickly, and are only answered periodically by the Admin
-              or by others users.  For quick answers, check the FAQs.
+    !!! NOTE: questions asked in option (4) ‘Leave a Comment’ may take an unknown period of time to be answered.
 
     -----------
     Choice: 
     -----------------------------------------------------------------------------------
     """
 
+    helpMenu3 = """
+        -----------------------------------------------------------------------------------
+        Help Menu: 
+        This is the help menu, please select from the options below:
+
+        1) FAQs			            
+        2) Leave a Comment		
+        3) View User Comments	
+        4) Ask a Question           
+        5) Return to Main		
+
+        -----------
+        Choice: 
+        -----------------------------------------------------------------------------------
+        """
+
+    output = None
+
     if choice == 'main':
-        output = mainMenu
+        if help_level == 1:
+            output = mainMenu1
+        if help_level == 2:
+            output = mainMenu
+        if help_level == 3:
+            output = mainMenu3
     elif choice == 'add':
-        output = addMenu
+        if help_level == 1:
+            output = addMenu1
+        if help_level == 2:
+            output = addMenu
+        if help_level == 3:
+            output = addMenu3
     elif choice == 'delete':
-        output = deleteMenu
+        if help_level == 1:
+            output = deleteMenu1
+        if help_level == 2:
+            output = deleteMenu
+        if help_level == 3:
+            output = deleteMenu3
     elif choice == 'search':
-        output = searchMenu
+        if help_level == 1:
+            output = searchMenu1
+        if help_level == 2:
+            output = searchMenu
+        if help_level == 3:
+            output = searchMenu3
     elif choice == 'help':
-        output = helpMenu
+        if help_level == 1:
+            output = helpMenu1
+        if help_level == 2:
+            output = helpMenu
+        if help_level == 3:
+            output = helpMenu3
+
+    # User Input Error
     else:
         output = 'invalid choice'
 
+    # display the menu chosen at the correct level of help
     print(output)
 
 # ---------- Main: User Interface ----------
@@ -635,6 +834,9 @@ def main():
     # Create a new library
     collection = Library()
 
+    # Initialize the help system
+    help_sys = Help()
+
     # print the updates banner
     if collection.get_banner():
         print(collection.get_banner())
@@ -649,7 +851,7 @@ def main():
     while choice != '5':
 
         # print the main menu
-        ShowMenu('main')
+        ShowMenu('main', collection.help_level)
 
         choice = input("Choice:  ")
 
@@ -658,7 +860,7 @@ def main():
             # Book parameters: [title, author, isbn, year, publisher, price]
 
             # Print the 'Add a Book' Menu
-            ShowMenu('add')
+            ShowMenu('add', collection.help_level)
 
             # reference Menu for this option
             """
@@ -710,7 +912,7 @@ def main():
             # CHOICE LOOP
             while True:
                 # Show the user the Deletion menu
-                ShowMenu('delete')
+                ShowMenu('delete', collection.help_level)
 
                 # Prompt the user to select from this menu
                 selection = int(input("Choice:  "))
@@ -822,7 +1024,7 @@ def main():
             # CHOICE LOOP
             while True:
                 # Show the user the Search menu
-                ShowMenu('search')
+                ShowMenu('search', collection.help_level)
 
                 # Prompt user to select from menu
                 selection = input("Choice:  ")
