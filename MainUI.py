@@ -101,7 +101,6 @@ class Library:
         self.serials = {}                       # *** MAIN COLLECTION *** ...... serial number to book object
         self.recycled = {}                      # keys are serial numbers, values are filename strings
         self.banner = ""                        # Banner at main menu with admin notes and update information
-        self.help_level = 2                     # degree of menu help (1: Basic - 3: Advanced)
 
     # ----- METHODS -----
     def insert_book(self, in_book):
@@ -360,10 +359,10 @@ class Faq:
         """
 
         #build the parsed faq entry
-        shown = self.separator + '\n'
-        shown += self.subject + '\n'
-        shown += self.question + '\n'
-        shown += self.answer + '\n'
+        shown = '\n' + self.separator + '\n'
+        shown += f"SUBJECT: {self.subject} \n"
+        shown += f"QUESTION: {self.question} \n"
+        shown += f"ANSWER: {self.answer} \n"
         shown += self.separator + '\n'
 
         # return it
@@ -398,23 +397,43 @@ class Help:
     def __init__(self):
         self.comments = []                  # holds comment objects
         self.questions = []                 # holds questions
-        self.faqs = []                       # holds Faq objects
-        self.assistance = 2                 # level of help offered to user (1 BASIC / 2 NORMAL / 3 ADVANCED)
+        self.assist_level = 2                 # level of help offered to user (1 BASIC / 2 NORMAL / 3 ADVANCED)
+
+        # access and load the faqs if there are any
+        try:
+            with open('faqs.pickle', "rb") as infile:
+                self.faqs = pickle.load(infile)  # holds Faq objects
+
+        # No faqs yet? make a blank list for them
+        except FileNotFoundError:
+            self.faqs = []
 
     # ----- METHODS -----
+    def set_assist_level(self, level) -> None:
+        """
+        Set the level of user assistance
+        :param level:
+        :return: None
+        """
+
+        done = False
+        while not done:
+            if 0 < level < 4:
+                self.assist_level = level
+                done = True
+            else:
+                print(f"Level {level} is not valid, enter a level 1-3")
+
     def add_comment(self) -> bool:
         """
         Adds a comment to the library comment base
-
-        :param title: the title of the comment
-        :param text: the narrative text of the comment
-        :return:
         """
         title = input("What is the title of your comment?")
         subject = input("What is the subject of your comment?")
         text = input("Enter the text of your comment now, and press 'Enter' when done...")
+        question = False
 
-        new_comment = Comment(title, subject, text)
+        new_comment = Comment(title, subject, text, question)
         self.comments.append(new_comment)
         return True
 
@@ -446,14 +465,35 @@ class Help:
             return
 
     def add_question(self) -> None:
-        """"""
+        """
+        Adds a question to the library list of open questions
+        """
+        title = input("What is the title of your question?")
+        subject = input("What is the subject of your question?")
+        text = input("Enter the text of your question now, and press 'Enter' when done...")
+        question = True
 
-        pass
+        new_comment = Comment(title, subject, text, question)
+        self.comments.append(new_comment)
 
     def del_question(self):
         """"""
 
         pass
+
+    def list_faq_subs(self) -> None:
+        """
+        Prints a numbered list of all FAQ subjects
+        :return: None
+        """
+
+        print("\n ----- Frequently Asked Questions -----\n")
+
+        counter = 0
+        for f in self.faqs:
+            counter += 1
+            print(f"{counter}) {f.get_subject()}")
+        print("\n")
 
     def add_faq(self):
         """
@@ -461,12 +501,27 @@ class Help:
         :return: None
         """
 
+        # Build the FAQ from user input
         subject = input("What is the subject of this FAQ?")
         question = input("Please enter the question of your FAQ?")
         answer = input("Enter the answer to the question now, and press 'Enter' when done...")
 
+        # Instantiate it into a new faq object
         new_faq = Faq(subject, question, answer)
         self.faqs.append(new_faq)
+
+        # Make Faq persistent by saving it
+        try:
+            with open(f"faqs.pickle", 'wb') as outfile:
+                pickle.dump(self.faqs, outfile, protocol=pickle.HIGHEST_PROTOCOL)
+
+        # $$$ TESTING $$$: provide info about errors
+        except AttributeError:
+            return 'FAIL-Attribute'
+        except EOFError:
+            return 'FAIL-EOF'
+        except IndexError:
+            return 'FAIL-Index'
 
         return None
 
@@ -514,7 +569,8 @@ def ShowMenu(choice, help_level):
     """
     Prints the menu specified to screen
 
-    :param choice:
+    :param choice: which menu the user wants to see
+    :param help_level: the user-set level of assistance they want
     :return:
     """
 
@@ -727,11 +783,12 @@ def ShowMenu(choice, help_level):
         Help Menu: 
         This is the help menu, please select from the options below:
 
-        1) FAQ			        [QUICK ANSWERS: Frequently Asked Questions, with answers posted]
-        2) Leave a Comment		[Write your own Comment for the Admin and other users]
-        3) View User Comments	[Read user comments]
-        4) Ask a Question       [SLOW*: leave a question request for the Admin or other users to answer]
-        5) Return to Main		[returns to main menu]
+        1) FAQ			                [QUICK ANSWERS: Frequently Asked Questions, with answers posted]
+        2) Leave a Comment		        [Write your own Comment for the Admin and other users]
+        3) View User Comments	        [Read user comments]
+        4) Ask a Question               [SLOW*: leave a question request for the Admin or other users to answer]
+        5) Set Menu Assistance Level    [Choose how much help and instructions are on each menu
+        6) Return to Main		        [returns to main menu]
 
         !!! NOTE: questions asked in option (4) ‘Leave a Comment’ may not
                   be answered quickly, and are only answered periodically by the Admin
@@ -748,10 +805,11 @@ def ShowMenu(choice, help_level):
     This is the help menu, please select from the options below:
 
         1) FAQ			        
-        2) Leave a Comment		[QUICK / BASIC answers]
+        2) Leave a Comment		            [QUICK / BASIC answers]
         3) View User Comments	
-        4) Ask a Question       [SLOW / DETAILED answers]
-        5) Return to Main		
+        4) Ask a Question                   [SLOW / DETAILED answers]
+        5) Set Menu Assistance Level        [SETTING: amount of instructions offered at each menu]
+        6) Return to Main		
 
     !!! NOTE: questions asked in option (4) ‘Leave a Comment’ may take an unknown period of time to be answered.
 
@@ -768,8 +826,9 @@ def ShowMenu(choice, help_level):
         1) FAQs			            
         2) Leave a Comment		
         3) View User Comments	
-        4) Ask a Question           
-        5) Return to Main		
+        4) Ask a Question      
+        5) Set Menu Assistance Level     
+        6) Return to Main		
 
         -----------
         Choice: 
@@ -851,7 +910,7 @@ def main():
     while choice != '5':
 
         # print the main menu
-        ShowMenu('main', collection.help_level)
+        ShowMenu('main', help_sys.assist_level)
 
         choice = input("Choice:  ")
 
@@ -860,7 +919,7 @@ def main():
             # Book parameters: [title, author, isbn, year, publisher, price]
 
             # Print the 'Add a Book' Menu
-            ShowMenu('add', collection.help_level)
+            ShowMenu('add', help_sys.assist_level)
 
             # reference Menu for this option
             """
@@ -912,7 +971,7 @@ def main():
             # CHOICE LOOP
             while True:
                 # Show the user the Deletion menu
-                ShowMenu('delete', collection.help_level)
+                ShowMenu('delete', help_sys.assist_level)
 
                 # Prompt the user to select from this menu
                 selection = int(input("Choice:  "))
@@ -1024,7 +1083,7 @@ def main():
             # CHOICE LOOP
             while True:
                 # Show the user the Search menu
-                ShowMenu('search', collection.help_level)
+                ShowMenu('search', help_sys.assist_level)
 
                 # Prompt user to select from menu
                 selection = input("Choice:  ")
@@ -1191,7 +1250,79 @@ def main():
 
         # --- GET HELP ---
         elif choice == '4':
-            pass
+            """Help Menu: 
+                This is the help menu, please select from the options below:
+                    1) FAQs			            
+                    2) Leave a Comment		
+                    3) View User Comments	
+                    4) Ask a Question      
+                    5) Set Menu Assistance Level     
+                    6) Return to Main"""
+
+            # CHOICE LOOP
+            while True:
+                # Show the user the Search menu
+                ShowMenu('help', help_sys.assist_level)
+
+                # Prompt user to select from menu
+                selection = int(input("Choice:  "))
+
+                # --- FAQ ---
+                if selection == 1:
+
+                    add_view = int(input("Enter '1' to view FAQs or '2' to add a FAQ"))
+                    if add_view == 1:
+                        help_sys.list_faq_subs()
+
+                        # Prompt the user to choose a faq to read
+                        this_one = int(input("Enter the number of the FAQ you wish to read"))
+
+                        # Adjust the number down one to align to the faq 0-up list numbering
+                        this_one -= 1
+
+                        # account for blank faqs list
+                        if len(help_sys.faqs) < 1:
+                            print("No FAQs found!")
+                            continue
+                        else:
+                            # Display the FAQ
+                            print(help_sys.faqs[this_one].show_faq())
+
+                        # Prompt the user to press enter when done
+                        input("Press enter when done...")
+                        continue
+                    elif add_view == 2:
+                        help_sys.add_faq()
+
+                    else:
+                        continue
+
+                # --- ADD COMMENT ---
+                elif selection == 2:
+                    pass
+
+                # --- READ COMMENTS ---
+                elif selection == 3:
+                    pass
+
+                # --- ASK QUESTION ---
+                elif selection == 4:
+                    pass
+
+                # --- SET ASSISTANCE LEVEL ---
+                elif selection == 5:
+                    choice = int(input("Enter the level (1-3) of help you want to receive at each menu...\n"
+                                       "(1) = Lots of help \n(2) = Default help \n(3) = No help"))
+                    help_sys.set_assist_level(choice)
+
+                # --- RETURN TO MAIN ---
+                elif selection == 6:
+                    choice = None
+                    break
+
+                # INVALID - choose again
+                else:
+                    continue
 
         elif choice == '5':
             print("Goodbye!")
