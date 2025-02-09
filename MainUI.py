@@ -318,7 +318,6 @@ class Library:
 
         pass
 
-
 class Comment:
     def __init__(self, title, subject, text, question) -> (bool or None):
         """
@@ -333,7 +332,51 @@ class Comment:
         self.title = title
         self.subject = subject
         self.text = text
-        self.question = question
+        self.question = question            # True if question, False if Comment
+        self.separator = '------------------------------'
+        self.answer = None
+
+    # ----- METHODS -----
+    def show_question(self) -> str:
+        """
+        Builds a user-facing Question string and returns it
+        :return: string
+        """
+
+        # build the parsed question entry
+        shown = '\n' + self.separator + '\n'
+        shown += f"TITLE: {self.title} \n"
+        shown += f"SUBJECT: {self.subject} \n"
+        shown += f"QUESTION: {self.text} \n"
+        shown += f"ANSWER: {self.answer} \n"
+        shown += self.separator + '\n'
+
+        # return it
+        return shown
+
+    def show_comment(self) -> str:
+        """
+        Builds a user-facing Comment string and returns it
+        :return: string
+        """
+
+        # build the parsed question entry
+        shown = '\n' + self.separator + '\n'
+        shown += f"TITLE: {self.title} \n"
+        shown += f"SUBJECT: {self.subject} \n"
+        shown += f"COMMENT: {self.text} \n"
+        shown += self.separator + '\n'
+
+        # return it
+        return shown
+
+    def get_subject(self) -> str:
+        """
+        Returns the object's subject attribute, agnostic of whether it's a question or comment
+
+        :return: string of the subject
+        """
+        return self.subject
 
 class Faq:
     def __init__(self, subject, question, answer) -> (bool or None):
@@ -351,6 +394,7 @@ class Faq:
         self.answer = answer
         self.separator = '------------------------------'
 
+    # ----- METHODS -----
     def show_faq(self):
         """
         Builds a cohesive FAQ entry, with top and bottom separators, and returns it.
@@ -358,7 +402,7 @@ class Faq:
         :return: a string representing a single formatted faq entry
         """
 
-        #build the parsed faq entry
+        # build the parsed faq entry
         shown = '\n' + self.separator + '\n'
         shown += f"SUBJECT: {self.subject} \n"
         shown += f"QUESTION: {self.question} \n"
@@ -392,13 +436,13 @@ class Faq:
         """
         return self.answer
 
-
 class Help:
     def __init__(self):
-        self.comments = []                  # holds comment objects
-        self.questions = []                 # holds questions
+
+        # --- ATTRIBUTES ---
         self.assist_level = 2                 # level of help offered to user (1 BASIC / 2 NORMAL / 3 ADVANCED)
 
+        # --- FAQ LOAD: ---
         # access and load the faqs if there are any
         try:
             with open('faqs.pickle', "rb") as infile:
@@ -407,6 +451,26 @@ class Help:
         # No faqs yet? make a blank list for them
         except FileNotFoundError:
             self.faqs = []
+
+        # --- COMMENT LOAD: ---
+        # access and load the comments if there are any
+        try:
+            with open('comments.pickle', "rb") as infile:
+                self.comments = pickle.load(infile)  # holds Faq objects
+
+        # No faqs yet? make a blank list for them
+        except FileNotFoundError:
+            self.comments = []
+
+        # --- QUESTION LOAD: ---
+        # access and load the questions if there are any
+        try:
+            with open('questions.pickle', "rb") as infile:
+                self.questions = pickle.load(infile)  # holds Faq objects
+
+        # No faqs yet? make a blank list for them
+        except FileNotFoundError:
+            self.questions = []
 
     # ----- METHODS -----
     def set_assist_level(self, level) -> None:
@@ -424,7 +488,7 @@ class Help:
             else:
                 print(f"Level {level} is not valid, enter a level 1-3")
 
-    def add_comment(self) -> bool:
+    def add_comment(self) -> (None or bool):
         """
         Adds a comment to the library comment base
         """
@@ -433,9 +497,18 @@ class Help:
         text = input("Enter the text of your comment now, and press 'Enter' when done...")
         question = False
 
+        # Build the new comment from above user input strings
         new_comment = Comment(title, subject, text, question)
         self.comments.append(new_comment)
-        return True
+
+        # Make Comment persistent by saving it
+        try:
+            with open(f"comments.pickle", 'wb') as outfile:
+                pickle.dump(self.comments, outfile, protocol=pickle.HIGHEST_PROTOCOL)
+
+        # $$$ TESTING $$$: provide info about errors
+        except FileNotFoundError:
+            return False
 
     def del_comment(self) -> None:
         """
@@ -464,7 +537,7 @@ class Help:
         else:
             return
 
-    def add_question(self) -> None:
+    def add_question(self) -> (None or bool):
         """
         Adds a question to the library list of open questions
         """
@@ -473,8 +546,18 @@ class Help:
         text = input("Enter the text of your question now, and press 'Enter' when done...")
         question = True
 
-        new_comment = Comment(title, subject, text, question)
-        self.comments.append(new_comment)
+        # Build the question from user input
+        new_question = Comment(title, subject, text, question)
+        self.comments.append(new_question)
+
+        # Make Comment persistent by saving it
+        try:
+            with open(f"questions.pickle", 'wb') as outfile:
+                pickle.dump(self.questions, outfile, protocol=pickle.HIGHEST_PROTOCOL)
+
+        # $$$ TESTING $$$: provide info about errors
+        except FileNotFoundError:
+            return False
 
     def del_question(self):
         """"""
@@ -493,6 +576,34 @@ class Help:
         for f in self.faqs:
             counter += 1
             print(f"{counter}) {f.get_subject()}")
+        print("\n")
+
+    def list_question_subs(self) -> None:
+        """
+        Prints a numbered list of all question subjects
+        :return: None
+        """
+
+        print("\n ----- User Questions -----\n")
+
+        counter = 0
+        for q in self.questions:
+            counter += 1
+            print(f"{counter}) {q.get_subject()}")
+        print("\n")
+
+    def list_comment_subs(self) -> None:
+        """
+        Prints a numbered list of all comment subjects
+        :return: None
+        """
+
+        print("\n ----- User Comments -----\n")
+
+        counter = 0
+        for c in self.comments:
+            counter += 1
+            print(f"{counter}) {c.get_subject()}")
         print("\n")
 
     def add_faq(self):
@@ -885,14 +996,28 @@ def main():
     """
     USER INTERFACE:
         This function provides the main user interface to the Library
+
+    OBJECT INSTANTIATION:
+        This function instantiates the objects that will be called and used in the overall system
+
+    DATA LOAD:
+        This function results in persistent data being loaded into the Library
     """
 
     # Print the title banner
     title_banner()
 
-    # Create a new library
-    collection = Library()
+    # ----- DATA LOAD -----
+    # access and load the collection if one exists
+    try:
+        with open('library.pickle', "rb") as infile:
+            collection = pickle.load(infile)
 
+    # No library yet? make a blank Library Object for it
+    except FileNotFoundError:
+        collection = Library()
+
+    # ----- OBJECT INSTANTION -----
     # Initialize the help system
     help_sys = Help()
 
@@ -904,6 +1029,7 @@ def main():
         print("    ---      NO UPDATES     ---")
         print("    ---------------------------")
 
+    # ----- USER INTERFACE -----
     # Initiate the main program loop
     choice = None
 
@@ -913,6 +1039,10 @@ def main():
         ShowMenu('main', help_sys.assist_level)
 
         choice = input("Choice:  ")
+
+        # --- Catch help requests ---
+        if choice == 'help':
+            choice = '4'
 
         # --- ADD A BOOK ---
         if choice == '1':
@@ -982,7 +1112,8 @@ def main():
 
                 # HELP
                 if selection == ('Help' or 'help' or 'HELP' or '#Help'):
-                    pass
+                    print("Returning to Main menu...choose option #4...")
+                    break
 
                 # RETURN TO MAIN
                 if selection == ('Return' or 'return' or '#Return'):
@@ -1094,7 +1225,8 @@ def main():
 
                 # HELP
                 if selection == ('Help' or 'help' or 'HELP' or '#Help'):
-                    pass
+                    print("Returning to Main menu...choose option #4...")
+                    break
 
                 # RETURN TO MAIN
                 if selection == ('Return' or 'return' or '#Return'):
@@ -1299,15 +1431,33 @@ def main():
 
                 # --- ADD COMMENT ---
                 elif selection == 2:
-                    pass
+                    help_sys.add_comment()
 
                 # --- READ COMMENTS ---
                 elif selection == 3:
-                    pass
+                    help_sys.list_comment_subs()
+
+                    # Prompt the user to choose a comment to read
+                    this_one = int(input("Enter the number of the comment you wish to read"))
+
+                    # Adjust the number down one to align to the faq 0-up list numbering
+                    this_one -= 1
+
+                    # account for blank faqs list
+                    if len(help_sys.comments) < 1:
+                        print("No FAQs found!")
+                        continue
+                    else:
+                        # Display the FAQ
+                        print(help_sys.comments[this_one].show_comment())
+
+                    # Prompt the user to press enter when done
+                    input("Press enter when done...")
+                    continue
 
                 # --- ASK QUESTION ---
                 elif selection == 4:
-                    pass
+                    help_sys.add_question()
 
                 # --- SET ASSISTANCE LEVEL ---
                 elif selection == 5:
@@ -1324,7 +1474,20 @@ def main():
                 else:
                     continue
 
+        # --- SAVE and EXIT ---
         elif choice == '5':
+            # Save library state and exit
+
+            # Create a new library if not present
+            try:
+                with open(f"library.pickle", 'wb') as outfile:
+                    pickle.dump(collection, outfile, protocol=pickle.HIGHEST_PROTOCOL)
+
+            # $$$ TESTING $$$: provide info about errors
+            except FileNotFoundError:
+                print("ERROR SAVING LIBRARY!!!")
+                return False
+
             print("Goodbye!")
             break
 
