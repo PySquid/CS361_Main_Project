@@ -693,8 +693,7 @@ class Pipeline:
             # Avoid race condition with destination service...
             # ...allow processing time
             # *** NOTE *** 2 seconds may not be enough...go to 3 if problems arise
-
-            time.sleep(2)
+            time.sleep(3)
 
             # Get reply from destination service, then decode it
             response = core_socket.recv(buffer)
