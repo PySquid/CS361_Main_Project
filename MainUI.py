@@ -10,6 +10,9 @@ import random
 import os
 
 # ---------- Classes ----------
+import time
+
+
 class Book:
     def __init__(self, title, author, isbn, year, publisher, price):
         """initializes a new network monitor.
@@ -91,7 +94,6 @@ class Book:
                 return False
         else:
             return False
-
 
 class Library:
     def __init__(self):
@@ -641,6 +643,72 @@ class Help:
 
         pass
 
+class Pipeline:
+    """
+    This structure establishes a communication pipeline between the core UI/CMS and its plugin
+    microservices.
+
+    CALL:   pipeline.send('microservice recipient name string', data payload)
+    RETURNS: whatever data the microservice replies with.
+    """
+    def __init__(self):
+        """ Builds the initial address book for the pipeline communication services. """
+        self.address_book = {
+            'core': ('127.0.0.1', 20000),
+            'auth': ('127.0.0.1', 20001),
+            'profile': ('127.0.0.1', 20002),
+            'accounting': ('127.0.0.1', 20003),
+            'log': ('127.0.0.1', 20004)
+        }
+
+    def send(self, destination, data, buffer=2048):
+        """IS passed a socket tuple and data, returns the reply from recipient"""
+
+        # Map destination to address using the address book
+        if destination == 'core':
+            destination = self.address_book['core']
+        elif destination == 'auth':
+            destination = self.address_book['auth']
+        elif destination == 'profile':
+            destination = self.address_book['profile']
+        elif destination == 'accounting':
+            destination = self.address_book['accounting']
+        elif destination == 'log':
+            destination = self.address_book['log']
+        else:
+            return False
+
+        # Make an IPv4/TCP socket
+        core_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        # Connect to destination service
+        try:
+            # destination is a tuple: (IP, PORT), to match the socket library format
+            core_socket.connect(destination)
+
+            # !!!!! TESTING !!!!!
+            print(f"Transmitting data to {destination} now...")
+            core_socket.sendall(data.encode())
+
+            # Avoid race condition with destination service...
+            # ...allow processing time
+            # *** NOTE *** 2 seconds may not be enough...go to 3 if problems arise
+
+            time.sleep(2)
+
+            # Get reply from destination service, then decode it
+            response = core_socket.recv(buffer)
+            processed_reply = str(response.decode())
+
+            # !!!!! TESTING !!!!!
+            print(f"{destination} responded with this data: '{processed_reply}'")
+
+        finally:
+            # Close the socket.
+            core_socket.close()
+
+        # provide the processed/decoded reply to the calling function
+        return processed_reply
 
 # ---------- Functions ----------
 
@@ -803,9 +871,9 @@ def ShowMenu(choice, help_level):
     Delete a Book: 
     Please choose how you wish to locate the book you wish to delete:
 
-    1) Title                [BASIC]
-    2) Author		        [BASIC]
-    3) Library S/N	        [ADVANCED]
+    1) Title                [BASIC: find by title keyword]
+    2) Author		        [BASIC: find by author keyword]
+    3) Library S/N	        [ADVANCED: find by full serial number]
 
     # Help Menu			        
     # Return to Main		        
@@ -857,9 +925,9 @@ def ShowMenu(choice, help_level):
     Please choose how you wish to locate the book, or type 'RecycleBin' for
      recently deleted books:
 
-    1) Title Search		            [BASIC]
-    2) Author Search		        [BASIC]
-    3) Library S/N Search	        [ADVANCED]
+    1) Title Search		            [BASIC: keyword search]
+    2) Author Search		        [BASIC: keyword search]
+    3) Library S/N Search	        [ADVANCED: full serial number search]
 
     #RecycleBin		[find/recover recently deleted books]
     #Help			[if you are having trouble or questions]
@@ -894,10 +962,10 @@ def ShowMenu(choice, help_level):
         Help Menu: 
         This is the help menu, please select from the options below:
 
-        1) FAQ			                [QUICK ANSWERS: Frequently Asked Questions, with answers posted]
+        1) FAQ			                [QUICK ANSWERS: Frequently Asked Questions, answers posted]
         2) Leave a Comment		        [Write your own Comment for the Admin and other users]
         3) View User Comments	        [Read user comments]
-        4) Ask a Question               [SLOW*: leave a question request for the Admin or other users to answer]
+        4) Ask a Question               [SLOW*: leave a question request for Admin/users to answer]
         5) Set Menu Assistance Level    [Choose how much help and instructions are on each menu
         6) Return to Main		        [returns to main menu]
 
@@ -915,14 +983,14 @@ def ShowMenu(choice, help_level):
     Help Menu: 
     This is the help menu, please select from the options below:
 
-        1) FAQ			        
-        2) Leave a Comment		            [QUICK / BASIC answers]
+        1) FAQ			                   [QUICK / BASIC answers]
+        2) Leave a Comment		            
         3) View User Comments	
-        4) Ask a Question                   [SLOW / DETAILED answers]
-        5) Set Menu Assistance Level        [SETTING: amount of instructions offered at each menu]
+        4) Ask a Question                  [SLOW / DETAILED answers]
+        5) Set Menu Assistance Level       [SETTING: amount of instructions offered at each menu]
         6) Return to Main		
 
-    !!! NOTE: questions asked in option (4) ‘Leave a Comment’ may take an unknown period of time to be answered.
+    !!! NOTE: questions asked in option (4) ‘Leave a Comment’ may take varying time to be answered.
 
     -----------
     Choice: 
