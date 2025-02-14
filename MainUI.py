@@ -8,10 +8,9 @@ import socket
 import pickle
 import random
 import os
-
-# ---------- Classes ----------
 import time
 
+# ---------- Classes ----------
 
 class Book:
     def __init__(self, title, author, isbn, year, publisher, price):
@@ -708,6 +707,55 @@ class Pipeline:
 
         # provide the processed/decoded reply to the calling function
         return processed_reply
+
+    def receive(self, service_name, rec_buffer=2048, max_connect=3, reply="ack"):
+        """
+        Takes a sender name listed in the address book as a string, then returns the
+        :param service_name: the name of the microservice calling this class
+        :param rec_buffer: default to 2048, this should not be changed
+        :param max_connect: generally, 1 should be the max connections, 3 is more than enough
+        :param reply: reply is the default reply from this method
+        :return: the action mode and the decoded message data is returned
+        """
+
+        # Prepare variables
+        data_decoded = None
+        address = self.address_book[service_name]
+
+        # Set up a receiving IPv4/TCP socket
+        receive_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        # Bind it
+        receive_socket.bind(address)
+
+        # Start listening for messages from the Core/UI/CMS
+        receive_socket.listen(max_connect)
+
+        # Main loop: Initiate communications with the CMS/UI 'core'
+
+        try:
+            while True:
+                # Accept connection from UI
+                core_socket, core_ip = receive_socket.accept()
+
+                # !!!!! TESTING !!!!!
+                print(f"{core_ip} (Core UI) just connected")
+
+                try:
+                    data = core_socket.recv(rec_buffer)
+                    data_decoded = str(data.decode())
+
+                finally:
+                    # Close connection to core
+                    core_socket.close()
+
+        finally:
+            # Close the connection
+            receive_socket.close()
+
+            # Make the response available to the calling function
+            return data_decoded
+
 
 # ---------- Functions ----------
 
