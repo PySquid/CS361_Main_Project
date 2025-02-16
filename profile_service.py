@@ -19,6 +19,8 @@ class Pipeline:
 
     CALL:   pipeline.send('microservice recipient name string', data payload)
     RETURNS: whatever data the microservice replies with...format is ['action': string, 'data': dictionary]
+
+    Whatever service initiates the contact must send [action, data], but responds with [reply]
     """
 
     def __init__(self, own_name):
@@ -59,16 +61,29 @@ class Pipeline:
 
             # !!!!! TESTING !!!!!
             print(f"Transmitting data to {destination} now...")
-            core_socket.sendall(data.encode())
+
+            if type(data) == str:
+                # it's a string...encode and send it
+                core_socket.sendall(data.encode())
+            else:
+                # it's a pickled dictionary...just send the bytes
+                core_socket.sendall(data)
 
             # Avoid race condition with destination service...
             # ...allow processing time
             # *** NOTE *** 2 seconds may not be enough...go to 3 if problems arise
             time.sleep(3)
 
-            # Get reply from destination service, then decode it
+            # Get reply from destination service, then decode it appropriately
             response = core_socket.recv(buffer)
-            processed_reply = str(response.decode())
+
+            # Process strings vs pickled dictionaries
+            try:
+                # is it a string...?
+                processed_reply = str(response.decode())
+            except:
+                # ...if not, it's a pickled dictionary
+                processed_reply = pickle.loads(response)
 
             # !!!!! TESTING !!!!!
             print(f"{destination} responded with this data: '{processed_reply}'")
@@ -114,8 +129,16 @@ class Pipeline:
                 print(f"{core_ip} (Core UI) just connected")
 
                 try:
+                    # transfer the socket data to the 'data' variable
                     data = core_socket.recv(rec_buffer)
-                    data_decoded = dict(data.decode())
+
+                    # try to decode the data as a string
+                    try:
+                        data_decoded = str(data.decode())
+
+                    # if that fails...it's a pickled dictionary, unpickle it
+                    except:
+                        data_decoded = pickle.loads(data)
 
                 finally:
                     # Close connection to core
