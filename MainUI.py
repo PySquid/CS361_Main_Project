@@ -1319,6 +1319,7 @@ def main():
         while True:
             login_choice = str(input())
             if login_choice == '1':
+                print("---------- LOG INTO EXISTING ACCOUNT ----------")
                 ShowMenu('loginA', help_sys.assist_level)
                 u_name = input("\tUSER NAME: ")
                 password = input("\tPASSWORD: ")
@@ -1341,9 +1342,28 @@ def main():
                     continue
 
             elif login_choice == '2':
-                pass
+                print("---------- CREATE NEW ACCOUNT ----------")
+                new_user = input("Enter your username (5-20 characters and/or numbers)")
+                new_pass = input("Enter your password (5-20 characters and/or numbers")
+
+                # Format the login message to the Authenticate Service
+                create_request = {'action': 'create', 'data': {'u_name': new_user, 'password': new_pass}}
+
+                # Authentication either returns TRUE or FALSE
+                verify = pipe.send('auth', create_request)
+
+                if verify:
+                    # Authentication microservice has verified creation of new username/password account
+                    print("SUCCESSFULLY CREATED NEW ACCOUNT...YOU MAY PROCEED...")
+                    logged_in_user = {'u_name': new_user, 'password': new_pass}
+                    break
+                else:
+                    # User not verified, return to login menu
+                    print("USERNAME ALREADY EXISTS, OR IMPROPERLY ENTERED NAME/PASS...TRY AGAIN")
+                    continue
 
             else:
+                # User entered something other than a 1 or 2
                 print("INVALID CHOICE, ENTER A '1' OR A '2'...")
                 continue
 
