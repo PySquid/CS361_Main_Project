@@ -642,15 +642,19 @@ class Help:
 
         pass
 
+
 class Pipeline:
     """
     This structure establishes a communication pipeline between the core UI/CMS and its plugin
     microservices.
 
     CALL:   pipeline.send('microservice recipient name string', data payload)
-    RETURNS: whatever data the microservice replies with.
+    RETURNS: whatever data the microservice replies with...format is ['action': string, 'data': dictionary]
+
+    Whatever service initiates the contact must send [action, data], but responds with [reply]
     """
-    def __init__(self):
+
+    def __init__(self, own_name):
         """ Builds the initial address book for the pipeline communication services. """
         self.address_book = {
             'core': ('127.0.0.1', 20000),
@@ -659,6 +663,7 @@ class Pipeline:
             'accounting': ('127.0.0.1', 20003),
             'log': ('127.0.0.1', 20004)
         }
+        self.name = own_name
 
     def send(self, destination, data, buffer=2048):
         """IS passed a socket tuple and data, returns the reply from recipient"""
@@ -700,7 +705,7 @@ class Pipeline:
             # *** NOTE *** 2 seconds may not be enough...go to 3 if problems arise
             time.sleep(3)
 
-            # Get reply from destination service, then decode it
+            # Get reply from destination service, then decode it appropriately
             response = core_socket.recv(buffer)
 
             # Process strings vs pickled dictionaries
@@ -721,7 +726,7 @@ class Pipeline:
         # provide the processed/decoded reply to the calling function
         return processed_reply
 
-    def receive(self, service_name, rec_buffer=2048, max_connect=3, reply="ack"):
+    def receive(self, rec_buffer=2048, max_connect=3, reply="ack") -> dict:
         """
         Takes a sender name listed in the address book as a string, then returns the
         :param service_name: the name of the microservice calling this class
@@ -732,8 +737,8 @@ class Pipeline:
         """
 
         # Prepare variables
-        data_decoded = None
-        address = self.address_book[service_name]
+        data_decoded = None  # container for decoded incoming message
+        address = self.address_book[self.name]  # sets own address based on object name
 
         # Set up a receiving IPv4/TCP socket
         receive_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -743,6 +748,9 @@ class Pipeline:
 
         # Start listening for messages from the Core/UI/CMS
         receive_socket.listen(max_connect)
+
+        # Initialize return message container at METHOD-level scope
+        message_decoded = None
 
         # Main loop: Initiate communications with the CMS/UI 'core'
 
@@ -756,15 +764,15 @@ class Pipeline:
 
                 try:
                     # transfer the socket data to the 'data' variable
-                    data = core_socket.recv(rec_buffer)
+                    message = core_socket.recv(rec_buffer)
 
                     # try to decode the data as a string
                     try:
-                        data_decoded = str(data.decode())
+                        message_decoded = str(message.decode())
 
                     # if that fails...it's a pickled dictionary, unpickle it
                     except:
-                        data_decoded = pickle.loads(data)
+                        message_decoded = pickle.loads(message)
 
                 finally:
                     # Close connection to core
@@ -775,7 +783,7 @@ class Pipeline:
             receive_socket.close()
 
             # Make the response available to the calling function
-            return data_decoded
+            return message_decoded
 
 
 # ---------- Functions ----------
@@ -821,15 +829,27 @@ def ShowMenu(choice, help_level):
     :return:
     """
 
+    loginMenuStart = """
+    --------------------------------- USER LOGIN --------------------------------------
+        This is the login menu for the Library.  Choose from the options below:
+        
+        1) Login                [Enter your username and password, if you already have them]
+        2) Create Account       [If you do not yet have a user name and password]
+    """
+
+    loginMenuEnd = """
+    ----------------------------------------------------------------------------------- 
+    """
+
     mainMenu1 = """
         ---------- Main Menu ---------- 
         This is the main menu, please select from the options below:
 
-        1) Add a book		        [add a new book to the collection]
-        2) Delete a book		    [find and remove an existing book]
-        3) Search for a book		[find an existing book and view its details]
+        1) Use Profile		        [View and edit your user profile information]
+        2) User Account		        [View your financial balances, checked-out books, and due dates]
+        3) Book Search	        	[find books, recover deleted books, and check out books]
         4) Help			            [if you are having trouble or questions]
-        5) Exit			            [closes down the program]
+        5) Exit			            [saves all settings and closes down the program]
 
         !!! NOTE1: you may type 'help' at any menu to be taken to the help menu
             NOTE2: you may type 'return' at any non-main menu to return to Main
@@ -837,28 +857,28 @@ def ShowMenu(choice, help_level):
         """
 
     mainMenu = """
-    ---------- Main Menu ---------- 
-    This is the main menu, please select from the options below:
+        ---------- Main Menu ---------- 
+        This is the main menu, please select from the options below:
 
-    1) Add a new book to the Library		        
-    2) Delete a book from the Library		     
-    3) Search for a book and view info		
-    4) Help Menu			            
-    5) Exit			            
+        1) Use Profile		        [View and edit]
+        2) User Account		        [Finance & checked out books]
+        3) Book Search	        	[find books and check out books]
+        4) Help			            [trouble or questions]
+        5) Exit			            [save state and exit]
 
-    !!! NOTE1: you may type 'help' at any menu to be taken to the help menu
+        !!! NOTE1: you may type 'help' at any menu to be taken to the help menu
         NOTE2: you may type 'return' at any non-main menu to return to Main
-    -----------
-    """
+        -----------
+        """
 
     mainMenu3 = """
         ---------- Main Menu ---------- 
         This is the main menu, please select from the options below:
 
-        1) Add a book		        
-        2) Delete a book		    
-        3) Search for a book		
-        4) Help			            
+        1) Use Profile
+        2) User Account
+        3) Book Search
+        4) Help
         5) Exit			            
 
         # Help
@@ -887,24 +907,24 @@ def ShowMenu(choice, help_level):
         """
 
     addMenu = """
-    -----------------------------------------------------------------------------------
-    Add a Book: 
-    Please fill in the book details below:
+        -----------------------------------------------------------------------------------
+        Add a Book: 
+        Please fill in the book details below:
 
-    ***Enter the book’s Information below…
+        ***Enter the book’s Information below…
 
-    #Help			[if you are having trouble or questions]
-    #Return			[returns to main menu]
+        #Help			[if you are having trouble or questions]
+        #Return			[returns to main menu]
 
-    --------------------- BOOK INFORMATION --------------------- 
-    Title: 
-    Author:
-    ISBN:
-    Publisher:
-    Publication Year:
-    Price:
-    -----------------------------------------------------------------------------------
-    """
+        --------------------- BOOK INFORMATION --------------------- 
+        Title: 
+        Author:
+        ISBN:
+        Publisher:
+        Publication Year:
+        Price:
+        -----------------------------------------------------------------------------------
+        """
 
     addMenu3 = """
         -----------------------------------------------------------------------------------
@@ -935,21 +955,21 @@ def ShowMenu(choice, help_level):
         """
 
     deleteMenu = """
-    -----------------------------------------------------------------------------------
-    Delete a Book: 
-    Please choose how you wish to locate the book you wish to delete:
+        -----------------------------------------------------------------------------------
+        Delete a Book: 
+        Please choose how you wish to locate the book you wish to delete:
 
-    1) Title                [BASIC: find by title keyword]
-    2) Author		        [BASIC: find by author keyword]
-    3) Library S/N	        [ADVANCED: find by full serial number]
+        1) Title                [BASIC: find by title keyword]
+        2) Author		        [BASIC: find by author keyword]
+        3) Library S/N	        [ADVANCED: find by full serial number]
 
-    # Help Menu			        
-    # Return to Main		        
+        # Help Menu			        
+        # Return to Main		        
 
-    -----------
-    Choice: 
-    -----------------------------------------------------------------------------------
-    """
+        -----------
+        Choice: 
+        -----------------------------------------------------------------------------------
+        """
 
     deleteMenu3 = """
         -----------------------------------------------------------------------------------
@@ -988,23 +1008,23 @@ def ShowMenu(choice, help_level):
         """
 
     searchMenu = """
-    -----------------------------------------------------------------------------------
-    Find a Book: 
-    Please choose how you wish to locate the book, or type 'RecycleBin' for
-     recently deleted books:
+        -----------------------------------------------------------------------------------
+        Find a Book: 
+        Please choose how you wish to locate the book, or type 'RecycleBin' for
+        recently deleted books:
 
-    1) Title Search		            [BASIC: keyword search]
-    2) Author Search		        [BASIC: keyword search]
-    3) Library S/N Search	        [ADVANCED: full serial number search]
+        1) Title Search		            [BASIC: keyword search]
+        2) Author Search		        [BASIC: keyword search]
+        3) Library S/N Search	        [ADVANCED: full serial number search]
 
-    #RecycleBin		[find/recover recently deleted books]
-    #Help			[if you are having trouble or questions]
-    #Return			[returns to main menu]
+        #RecycleBin		[find/recover recently deleted books]
+        #Help			[if you are having trouble or questions]
+        #Return			[returns to main menu]
 
-    -----------
-    Choice: 
-    -----------------------------------------------------------------------------------
-    """
+        -----------
+        Choice: 
+        -----------------------------------------------------------------------------------
+        """
 
     searchMenu3 = """
         -----------------------------------------------------------------------------------
@@ -1047,9 +1067,9 @@ def ShowMenu(choice, help_level):
         """
 
     helpMenu = """
-    -----------------------------------------------------------------------------------
-    Help Menu: 
-    This is the help menu, please select from the options below:
+        -----------------------------------------------------------------------------------
+        Help Menu: 
+        This is the help menu, please select from the options below:
 
         1) FAQ			                   [QUICK / BASIC answers]
         2) Leave a Comment		            
@@ -1058,12 +1078,12 @@ def ShowMenu(choice, help_level):
         5) Set Menu Assistance Level       [SETTING: amount of instructions offered at each menu]
         6) Return to Main		
 
-    !!! NOTE: questions asked in option (4) ‘Leave a Comment’ may take varying time to be answered.
+        !!! NOTE: questions asked in option (4) ‘Leave a Comment’ may take varying time to be answered.
 
-    -----------
-    Choice: 
-    -----------------------------------------------------------------------------------
-    """
+        -----------
+        Choice: 
+        -----------------------------------------------------------------------------------
+        """
 
     helpMenu3 = """
         -----------------------------------------------------------------------------------
@@ -1081,6 +1101,112 @@ def ShowMenu(choice, help_level):
         Choice: 
         -----------------------------------------------------------------------------------
         """
+
+    profileMenu1 = """
+        -----------------------------------------------------------------------------------
+        Profile Settings Menu: 
+        This is the settings menu, please select from the options below:
+
+        1) View User Profile    [View your settings for all your profile information]
+        2) Edit User Profile    [Change: Name, Age, Address, Phone, Email, Library Card Number, and more
+        3) Return to Main Menu		
+
+        -----------
+        Choice: 
+        -----------------------------------------------------------------------------------
+        """
+
+    profileMenu = """
+        -----------------------------------------------------------------------------------
+        Profile Settings Menu: 
+            This is the settings menu, please select from the options below:
+
+        1) View User Profile        [see your profile settings]
+        2) Edit User Profile        [change your profile settings]
+        3) Return to Main Menu	
+
+        -----------
+        Choice: 
+        -----------------------------------------------------------------------------------
+        """
+
+    profileMenu3 = """
+        -----------------------------------------------------------------------------------
+        Profile Settings Menu: 
+        This is the settings menu, please select from the options below:
+
+        1) View User Profile
+        2) Edit User Profile
+        3) Return to Main Menu		
+
+        -----------
+        Choice: 
+        -----------------------------------------------------------------------------------
+        """
+
+    accountMenu1 = """
+            -----------------------------------------------------------------------------------
+            Account Settings Menu: 
+                This is the settings menu, please select from the options below:
+
+            1) View account balance     [See how much money you owe to the library]
+            2) View checked-out books   [View the books you have checked out, and due dates]
+            3) Return to Main Menu	
+
+            -----------
+            Choice: 
+            -----------------------------------------------------------------------------------
+            """
+
+    accountMenu = """
+            -----------------------------------------------------------------------------------
+            Account Settings Menu: 
+                This is the settings menu, please select from the options below:
+
+            1) View account balance     [finance and accounting]
+            2) View checked-out books   [titles and due dates]
+            3) Return to Main Menu	
+
+            -----------
+            Choice: 
+            -----------------------------------------------------------------------------------
+            """
+
+    accountMenu3 = """
+            -----------------------------------------------------------------------------------
+            Account Settings Menu: 
+                This is the settings menu, please select from the options below:
+
+            1) View account balance
+            2) View checked-out books
+            3) Return to Main Menu	
+
+            -----------
+            Choice: 
+            -----------------------------------------------------------------------------------
+            """
+
+    adminMenu = """
+                ---------- Main Menu ---------- 
+            ======== ADMINISTRATOR ACCESS ONLY ========
+            
+            This is the administrator menu, please select from the options below:
+
+            1)  Use Profile
+            2)  User Account
+            3)  Book Search
+            4)  Help
+            5)  Exit
+            6)  Add a Book
+            7)  Delete a Book
+            8)  Delete user account
+            9)  View Logs
+            10) Delete Logs		            
+
+            # Help
+            # Return
+            -----------
+            """
 
     output = None
 
@@ -1119,6 +1245,26 @@ def ShowMenu(choice, help_level):
             output = helpMenu
         if help_level == 3:
             output = helpMenu3
+    elif choice == 'account':
+        if help_level == 1:
+            output = accountMenu1
+        if help_level == 2:
+            output = accountMenu
+        if help_level == 3:
+            output = accountMenu3
+    elif choice == 'profile':
+        if help_level == 1:
+            output = profileMenu1
+        if help_level == 2:
+            output = profileMenu
+        if help_level == 3:
+            output = profileMenu3
+    elif choice == 'admin':
+        output = adminMenu
+    elif choice == 'loginA':
+        output = loginMenuStart
+    elif choice == 'loginB':
+        output = loginMenuEnd
 
     # User Input Error
     else:
@@ -1130,14 +1276,17 @@ def ShowMenu(choice, help_level):
 # ---------- Main: User Interface ----------
 def main():
     """
-    USER INTERFACE:
-        This function provides the main user interface to the Library
+    DATA LOAD:
+        This function results in persistent data being loaded into the Library
 
     OBJECT INSTANTIATION:
         This function instantiates the objects that will be called and used in the overall system
 
-    DATA LOAD:
-        This function results in persistent data being loaded into the Library
+    LOGIN:
+        This calls the user login microservice
+
+    USER INTERFACE:
+        This function provides the main user interface to the Library
     """
 
     # Print the title banner
@@ -1153,9 +1302,54 @@ def main():
     except FileNotFoundError:
         collection = Library()
 
-    # ----- OBJECT INSTANTION -----
+    # ----- OBJECT INSTANTIATION -----
     # Initialize the help system
     help_sys = Help()
+    # Initialize the Microservice communications system
+    pipe = Pipeline('core')
+
+    # ----- LOGIN  -----
+    logged_in_user = None
+
+    # !!!!! !!!! !!!!! Microservice ON/OFF SWITCH !!!!! !!!!! !!!!!
+    switch = 'OFF'
+    if switch == 'ON':
+
+        # Authenticate the user, then load their profile
+        while True:
+            login_choice = str(input())
+            if login_choice == '1':
+                ShowMenu('loginA', help_sys.assist_level)
+                u_name = input("\tUSER NAME: ")
+                password = input("\tPASSWORD: ")
+                ShowMenu('loginB', help_sys.assist_level)
+
+                # Format the login message to the Authenticate Service
+                login_request = {'action': 'login', 'data': {'u_name': u_name, 'password': password}}
+
+                # Authentication either returns TRUE or FALSE
+                verify = pipe.send('auth', login_request)
+
+                if verify:
+                    # Authentication microservice has verified a username-password match...login complete
+                    print("SUCCESSFUL LOGIN...YOU MAY PROCEED...")
+                    logged_in_user = {'u_name': u_name, 'password': password}
+                    break
+                else:
+                    # User not verified, return to login menu
+                    print("INVALID CREDENTIALS, OR USER NOT FOUND...TRY AGAIN")
+                    continue
+
+            elif login_choice == '2':
+                pass
+
+            else:
+                print("INVALID CHOICE, ENTER A '1' OR A '2'...")
+                continue
+
+
+
+
 
     # print the updates banner
     if collection.get_banner():
@@ -1171,179 +1365,25 @@ def main():
 
     while choice != '5':
 
-        # print the main menu
-        ShowMenu('main', help_sys.assist_level)
+        # print the main menu, according to which user is logged in
+        if logged_in_user == 'admin':
+            ShowMenu('admin', help_sys.assist_level)
+        else:
+            ShowMenu('main', help_sys.assist_level)
 
         choice = input("Choice:  ")
 
         # --- Catch help requests ---
-        if choice == 'help':
+        if choice == ('HELP' or 'Help' or 'help'):
             choice = '4'
 
-        # --- ADD A BOOK ---
-        if choice == '1':
-            # Book parameters: [title, author, isbn, year, publisher, price]
+        # --- PROFILE ACCESS ---
+        elif choice == '1':
+            pass
 
-            # Print the 'Add a Book' Menu
-            ShowMenu('add', help_sys.assist_level)
-
-            # reference Menu for this option
-            """
-            Add a Book: 
-            Please fill in the book details below:
-        
-            ***Enter the book’s Information below…
-        
-            #Help			[if you are having trouble or questions]
-            #Return			[returns to main menu]
-                    --------------------- BOOK INFORMATION --------------------- 
-            Title: 
-            Author:
-            ISBN:
-            Publisher:
-            Publication Year:
-            Price:
-            -----------------------------------------------------------------------------------"""
-
-            title = input("Please enter the Book's Title:  ")
-            author = input("Please enter the Book's Author:  ")
-            isbn = int(input("Please enter the Book's ISBN (without dashes):  "))
-            pub = input("Please enter the Book's Publisher:  ")
-            year = int(input("Please enter the Book's publication year:  "))
-            price = float(input("Please enter the Book's price without $ sign (ex: 5.25):  $"))
-
-            # Create a new book and add it to the Library collection
-            collection.add_book(Book(title, author, isbn, pub, year, price))
-
-            print("Book entered and recorded, thank you!")
-            print("-----------------------------------------------------------------------------------\n \n")
-            continue
-
-        # --- DELETE A BOOK ---
+        # --- ACCOUNT ACCESS ---
         elif choice == '2':
-
-            # reference Menu for this option:
-            """
-            Delete a Book: 
-            Please choose how you wish to locate the book you wish to delete:
-        
-            1) Title		    []
-            2) Author		    []
-            3) Library S/N	    []
-        
-            #Help			[if you are having trouble or questions]
-            #Return			[returns to main menu]"""
-
-            # CHOICE LOOP
-            while True:
-                # Show the user the Deletion menu
-                ShowMenu('delete', help_sys.assist_level)
-
-                # Prompt the user to select from this menu
-                selection = int(input("Choice:  "))
-
-                # Reset variables
-                match = None
-                matches = None
-
-                # HELP
-                if selection == ('Help' or 'help' or 'HELP' or '#Help'):
-                    print("Returning to Main menu...choose option #4...")
-                    break
-
-                # RETURN TO MAIN
-                if selection == ('Return' or 'return' or '#Return'):
-                    # return to main menu
-                    break
-
-                # TITLE SEARCH
-                if selection == 1:
-                    search_term = input("Type the title, or partial title: ")
-                    matches = [sn for titles, sn in collection.titles.items() if search_term in titles]
-
-                # AUTHOR SEARCH
-                elif selection == 2:
-                    search_term = input("Type the Author name, or partial name: ")
-                    matches = [sn for authors, sn in collection.authors.items() if search_term in authors]
-
-                # SERIAL SEARCH
-                elif selection == 3:
-                    search_term = input("Type the exact Library serial number of the book to delete:  ")
-                    match = collection.serials[search_term]
-
-                # ERROR
-                else:
-                    # notify user of mistake, and allow them to re-enter their choice
-                    print('Invalid selection, try again...')
-                    continue
-
-                # RESULTS
-                if match:
-                    print("Is the book below the one you wish to delete? (1: yes / 2: no ")
-                    match.view()
-                    doom = int(input())
-                    if doom == 1:
-                        recycle = input("Are you SURE you want to delete it? Type 'delete' to confirm")
-                        if recycle == 'delete':
-                            collection.delete_book(match.get_serial())
-                            print("Deletion confirmed!")
-                            print("Book will remain in recycle bin for a limited time, and can be"
-                                  "recovered by performing a Book Search of recycled books.")
-
-                            # Return to main
-                            break
-
-                # Display matching books to user
-                print("Your search yielded the following results: \n")
-
-                # 'order' assigns a 1-up number to each book in the list to aid in identification
-                order = 0
-                if matches:
-                    for i in matches:
-                        print(f"BOOK NUMBER {order+1}")
-
-                        collection.book_by_serial(i).view()
-                        print("\n")
-                        order += 1
-
-                    found_it = int(input("Is the book you're looking for in the results? (1: yes / 2: no)  "))
-                    if found_it == 1:
-                        doom = int(input("Enter the BOOK NUMBER of the book you wish to delete: "))
-                        print("This is the book title you have selected: \n")
-                        print(collection.book_by_serial(matches[doom-1]).get_title())
-                        recycle = int(input("Is this the book you want to delete? (1: yes / 2: no)"))
-                        if recycle == 1:
-                            confirm = input("Are you SURE you want to delete it? Type 'delete' to confirm:  \n")
-                            if confirm == 'delete':
-                                collection.delete_book(matches[doom-1])
-                                print("Deletion confirmed!")
-                                print("Book will remain in recycle bin for a limited time, and can be "
-                                      "recovered by performing a Book Search of recycled books.")
-
-                                # Return to main
-                                break
-                        else:
-                            where_now = int(input("Whew, close one! Where to now? (1: main / 2: try again)"))
-                            if where_now == 1:
-                                break
-                            else:
-                                continue
-
-                else:
-                    print("(No books found matching your terms)")
-                    try_again = int(input("Try another search to delete? (1: yes / 2: no)"))
-                    if try_again == 1:
-                        # back to choice loop: how to find book to delete
-                        continue
-                    else:
-                        # Return to main
-                        break
-
-                # return to main
-                break
-
-            # feed back into the Main menu
-            continue
+            pass
 
         # --- SEARCH FOR BOOK---
         elif choice == '3':
@@ -1626,6 +1666,188 @@ def main():
 
             print("Goodbye!")
             break
+
+        # \\\/// ADMIN OPTIONS ONLY \\\///
+
+        # --- ADD A BOOK ---
+        if (choice == '6') and (logged_in_user == 'admin'):
+            # Book parameters: [title, author, isbn, year, publisher, price]
+
+            # Print the 'Add a Book' Menu
+            ShowMenu('add', help_sys.assist_level)
+
+            # reference Menu for this option
+            """
+            Add a Book: 
+            Please fill in the book details below:
+
+            ***Enter the book’s Information below…
+
+            #Help			[if you are having trouble or questions]
+            #Return			[returns to main menu]
+                    --------------------- BOOK INFORMATION --------------------- 
+            Title: 
+            Author:
+            ISBN:
+            Publisher:
+            Publication Year:
+            Price:
+            -----------------------------------------------------------------------------------"""
+
+            title = input("Please enter the Book's Title:  ")
+            author = input("Please enter the Book's Author:  ")
+            isbn = int(input("Please enter the Book's ISBN (without dashes):  "))
+            pub = input("Please enter the Book's Publisher:  ")
+            year = int(input("Please enter the Book's publication year:  "))
+            price = float(input("Please enter the Book's price without $ sign (ex: 5.25):  $"))
+
+            # Create a new book and add it to the Library collection
+            collection.add_book(Book(title, author, isbn, pub, year, price))
+
+            print("Book entered and recorded, thank you!")
+            print("-----------------------------------------------------------------------------------\n \n")
+            continue
+
+        # --- DELETE A BOOK ---
+        elif (choice == '7') and (logged_in_user == 'admin'):
+
+            # reference Menu for this option:
+            """
+            Delete a Book: 
+            Please choose how you wish to locate the book you wish to delete:
+
+            1) Title		    []
+            2) Author		    []
+            3) Library S/N	    []
+
+            #Help			[if you are having trouble or questions]
+            #Return			[returns to main menu]"""
+
+            # CHOICE LOOP
+            while True:
+                # Show the user the Deletion menu
+                ShowMenu('delete', help_sys.assist_level)
+
+                # Prompt the user to select from this menu
+                selection = int(input("Choice:  "))
+
+                # Reset variables
+                match = None
+                matches = None
+
+                # HELP
+                if selection == ('Help' or 'help' or 'HELP' or '#Help'):
+                    print("Returning to Main menu...choose option #4...")
+                    break
+
+                # RETURN TO MAIN
+                if selection == ('Return' or 'return' or '#Return'):
+                    # return to main menu
+                    break
+
+                # TITLE SEARCH
+                if selection == 1:
+                    search_term = input("Type the title, or partial title: ")
+                    matches = [sn for titles, sn in collection.titles.items() if search_term in titles]
+
+                # AUTHOR SEARCH
+                elif selection == 2:
+                    search_term = input("Type the Author name, or partial name: ")
+                    matches = [sn for authors, sn in collection.authors.items() if search_term in authors]
+
+                # SERIAL SEARCH
+                elif selection == 3:
+                    search_term = input("Type the exact Library serial number of the book to delete:  ")
+                    match = collection.serials[search_term]
+
+                # ERROR
+                else:
+                    # notify user of mistake, and allow them to re-enter their choice
+                    print('Invalid selection, try again...')
+                    continue
+
+                # RESULTS
+                if match:
+                    print("Is the book below the one you wish to delete? (1: yes / 2: no ")
+                    match.view()
+                    doom = int(input())
+                    if doom == 1:
+                        recycle = input("Are you SURE you want to delete it? Type 'delete' to confirm")
+                        if recycle == 'delete':
+                            collection.delete_book(match.get_serial())
+                            print("Deletion confirmed!")
+                            print("Book will remain in recycle bin for a limited time, and can be"
+                                  "recovered by performing a Book Search of recycled books.")
+
+                            # Return to main
+                            break
+
+                # Display matching books to user
+                print("Your search yielded the following results: \n")
+
+                # 'order' assigns a 1-up number to each book in the list to aid in identification
+                order = 0
+                if matches:
+                    for i in matches:
+                        print(f"BOOK NUMBER {order + 1}")
+
+                        collection.book_by_serial(i).view()
+                        print("\n")
+                        order += 1
+
+                    found_it = int(input("Is the book you're looking for in the results? (1: yes / 2: no)  "))
+                    if found_it == 1:
+                        doom = int(input("Enter the BOOK NUMBER of the book you wish to delete: "))
+                        print("This is the book title you have selected: \n")
+                        print(collection.book_by_serial(matches[doom - 1]).get_title())
+                        recycle = int(input("Is this the book you want to delete? (1: yes / 2: no)"))
+                        if recycle == 1:
+                            confirm = input("Are you SURE you want to delete it? Type 'delete' to confirm:  \n")
+                            if confirm == 'delete':
+                                collection.delete_book(matches[doom - 1])
+                                print("Deletion confirmed!")
+                                print("Book will remain in recycle bin for a limited time, and can be "
+                                      "recovered by performing a Book Search of recycled books.")
+
+                                # Return to main
+                                break
+                        else:
+                            where_now = int(input("Whew, close one! Where to now? (1: main / 2: try again)"))
+                            if where_now == 1:
+                                break
+                            else:
+                                continue
+
+                else:
+                    print("(No books found matching your terms)")
+                    try_again = int(input("Try another search to delete? (1: yes / 2: no)"))
+                    if try_again == 1:
+                        # back to choice loop: how to find book to delete
+                        continue
+                    else:
+                        # Return to main
+                        break
+
+                # return to main
+                break
+
+            # feed back into the Main menu
+            continue
+
+        # --- DELETE USER ACCOUNT ---
+        elif (choice == '8') and (logged_in_user == 'admin'):
+            pass
+        # --- VIEW LOGS ---
+        elif (choice == '9') and (logged_in_user == 'admin'):
+            pass
+        # --- DELETE LOGS ---
+        elif (choice == '10') and (logged_in_user == 'admin'):
+            pass
+
+        # --- INVALID CHOICE ---
+        else:
+            print("INVALID CHOICE! PLEASE CHOOSE FROM VALID OPTIONS \n")
+            continue
 
 
 # Execute Program

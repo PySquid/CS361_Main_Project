@@ -118,6 +118,9 @@ class Pipeline:
         # Start listening for messages from the Core/UI/CMS
         receive_socket.listen(max_connect)
 
+        # Initialize return message container at METHOD-level scope
+        message_decoded = None
+
         # Main loop: Initiate communications with the CMS/UI 'core'
 
         try:
@@ -130,15 +133,15 @@ class Pipeline:
 
                 try:
                     # transfer the socket data to the 'data' variable
-                    data = core_socket.recv(rec_buffer)
+                    message = core_socket.recv(rec_buffer)
 
                     # try to decode the data as a string
                     try:
-                        data_decoded = str(data.decode())
+                        message_decoded = str(message.decode())
 
                     # if that fails...it's a pickled dictionary, unpickle it
                     except:
-                        data_decoded = pickle.loads(data)
+                        message_decoded = pickle.loads(message)
 
                 finally:
                     # Close connection to core
@@ -149,7 +152,7 @@ class Pipeline:
             receive_socket.close()
 
             # Make the response available to the calling function
-            return data_decoded
+            return message_decoded
 
 class User:
     def __init__(self, first, last, age, address, phone, email):
