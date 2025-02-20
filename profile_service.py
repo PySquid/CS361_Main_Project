@@ -66,8 +66,9 @@ class Pipeline:
                 # it's a string...encode and send it
                 core_socket.sendall(data.encode())
             else:
-                # it's a pickled dictionary...just send the bytes
-                core_socket.sendall(data)
+                # it's a dictionary...pickle it and just send the bytes
+                pickled_data = pickle.dumps(data)
+                core_socket.sendall(pickled_data)
 
             # Avoid race condition with destination service...
             # ...allow processing time
@@ -97,7 +98,8 @@ class Pipeline:
 
     def receive(self, rec_buffer=2048, max_connect=3, reply="ack") -> dict:
         """
-        Takes a sender name listed in the address book as a string, then returns the
+        Takes no params, listens for TCP connections, then returns any message data received.
+
         :param service_name: the name of the microservice calling this class
         :param rec_buffer: default to 2048, this should not be changed
         :param max_connect: generally, 1 should be the max connections, 3 is more than enough
@@ -254,10 +256,12 @@ def main():
         # execute listening (blocking action) and assign result to 'new_message'
         new_message = pipe.receive()
 
+        # Assign
         command = new_message['action']
         data = new_message['data']
 
         # take action based on the command given in the message
+
         # --- CREATE NEW USER PROFILE ---
         if command == 'create_user':
             # data format: dictionary with keys: [first_name, last_name, age, address, phone, email]
@@ -279,9 +283,10 @@ def main():
             if data['user_name'] in profiles.users.keys():
                 del profiles.users[data['user_name']]
                 del profiles.lib_cards[data['user_name']]
+                pipe.send('core', 'SUCCESS: user added')
             # ...if not, let the UI know what happened
             else:
-                pipe.send('core', "{'error': 'user not found'}")
+                pipe.send('core', 'ERROR: user not found!')
 
         # --- GET USER PROFILE INFO ---
         elif command == 'get_user_info':

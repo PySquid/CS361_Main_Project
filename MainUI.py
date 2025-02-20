@@ -697,8 +697,9 @@ class Pipeline:
                 # it's a string...encode and send it
                 core_socket.sendall(data.encode())
             else:
-                # it's a pickled dictionary...just send the bytes
-                core_socket.sendall(data)
+                # it's a dictionary...pickle it and just send the bytes
+                pickled_data = pickle.dumps(data)
+                core_socket.sendall(pickled_data)
 
             # Avoid race condition with destination service...
             # ...allow processing time
@@ -728,7 +729,8 @@ class Pipeline:
 
     def receive(self, rec_buffer=2048, max_connect=3, reply="ack") -> dict:
         """
-        Takes a sender name listed in the address book as a string, then returns the
+        Takes no params, listens for TCP connections, then returns any message data received.
+
         :param service_name: the name of the microservice calling this class
         :param rec_buffer: default to 2048, this should not be changed
         :param max_connect: generally, 1 should be the max connections, 3 is more than enough
@@ -1366,6 +1368,14 @@ def main():
                 # User entered something other than a 1 or 2
                 print("INVALID CHOICE, ENTER A '1' OR A '2'...")
                 continue
+
+        # --- INITIAL PROFILE CREATION (quick or custom) ---
+        print("You may create a user profile now...")
+        print("PROFILE CREATION OPTIONS:")
+        print("-------------------------")
+        print("""1) Quick Profile         [only enter minimum required data, may edit later]
+                 2) Custom Profile        [enter full profile data now]\n""")
+        new_prof_type = input("Choice: ")
 
 
 
