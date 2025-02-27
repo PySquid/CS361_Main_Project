@@ -204,9 +204,10 @@ class ProfileData:
                 self.lib_cards[user_name] = test_card
                 return
 
-    def add_user(self, user):
-        """UI gets all the user input data, creates a user object, and passes the OBJECT here
-        ***creates username, deconflicts it, then incorporates it into a new User object
+    def add_user(self, username, user):
+        """UI gets all the user input data, Profile Main creates a user object, then passes the OBJECT here"""
+
+        # Legacy username creation code prior to Microservice A
         """
         # create the user name
         naming = True
@@ -220,12 +221,13 @@ class ProfileData:
                 # no username conflict...proceed with creation
                 new_username = test_username
                 break
+        """
 
         # generate a new library card number: FORMAT = random 0-9999999
-        self.add_lib_card(new_username)
+        self.add_lib_card(username)
 
         # create the new full profile
-        self.users[new_username] = user
+        self.users[username] = user
 
         # finished
         return
@@ -264,6 +266,7 @@ def main():
 
         # --- CREATE NEW USER PROFILE ---
         if command == 'create_user':
+            u_name = data['u_name']
             # data format: dictionary with keys: [first_name, last_name, age, address, phone, email]
             f = data['first_name']
             l = data['last_name']
@@ -272,7 +275,7 @@ def main():
             p = data['phone']
             e = data['email']
             new = User(f, l, age, addr, p, e)
-            profiles.add_user(new)
+            profiles.add_user(u_name, new)
             continue
 
         # --- DELETE EXISTING USER PROFILE---
@@ -292,7 +295,10 @@ def main():
         elif command == 'get_user_info':
             # data format {'user_name': username}
             uname = data['user_name']
-            pipe.send('core', profiles.users[uname].get_info())
+            if uname in profiles.users:
+                pipe.send('core', profiles.users[uname].get_info())
+            else:
+                pipe.send('core', 'ERROR')
 
         # --- EDIT USER ---
         elif command == 'edit_user':

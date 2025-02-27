@@ -1305,8 +1305,8 @@ def authenticate(request) -> bool:
 
     return determination
 
-def login():
-    """ Logs a user in."""
+def login(pipe):
+    """ Logs a user in, creates new account and profile if absent."""
 
     # Authenticate the user, then load their profile
     while True:
@@ -1352,6 +1352,9 @@ def login():
             if created_account:
                 # Authentication microservice has verified creation of new username/password account
                 print("SUCCESSFULLY CREATED NEW ACCOUNT...YOU MAY PROCEED...")
+
+                create_profile(pipe, new_user)
+
                 return {'u_name': new_user, 'password': new_pass}
 
             else:
@@ -1368,15 +1371,45 @@ def login():
             print("INVALID CHOICE, ENTER A '1' OR A '2'...")
             continue
 
-def profile():
-    """"""
+def create_profile(pipe, username):
+    """ Gets a user's profile information from them and creates the profile. """
+
     # --- INITIAL PROFILE CREATION (quick or custom) ---
     print("You may create a user profile now...")
     print("PROFILE CREATION OPTIONS:")
     print("-------------------------")
     print("""1) Quick Profile         [only enter minimum required data, may edit later]
-                     2) Custom Profile        [enter full profile data now]\n""")
+             2) Custom Profile        [enter full profile data now]\n""")
     new_prof_type = input("Choice: ")
+
+    # --- QUICK ---
+    if new_prof_type == '1':
+        pass
+
+    # --- CUSTOM ---
+    elif new_prof_type == '2':
+        create_msg = {'action': 'create_user', 'u_name': username}
+
+        print("Custom profile chosen...creating now...")
+        create_msg['first_name'] = input("Enter your first name: ")
+        create_msg['last_name'] = input("Enter your last name: ")
+        create_msg['age'] = input("Enter your age: ")
+        create_msg['address'] = input("Enter your full address: ")
+        create_msg['phone'] = input("Enter your phone number: ")
+        create_msg['email'] = input("Enter your full email: ")
+
+        pipe.send('profile', create_msg)
+        return
+
+def fetch_profile(pipe, username):
+    """Takes a username, and returns the user's profile. """
+
+    data = {'action': 'get_user_info', 'user_name': username}
+    reply = pipe.send('profile', data)
+    if reply == 'ERROR':
+        return False
+    else:
+        return reply
 
 
 # ---------- Main: User Interface ----------
@@ -1414,13 +1447,13 @@ def main():
     pipe = Pipeline('core')
 
     # ----- LOGIN  -----
-    logged_in_user = login()
+    logged_in_user = login(pipe)
     if not logged_in_user:
         # User exited program at login screen
         return
 
     # ----- PROFILE -----
-
+    fetch_profile(pipe, logged_in_user['uname'])
 
     # print the updates banner
     if collection.get_banner():
