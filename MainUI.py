@@ -822,7 +822,7 @@ def book_banner() -> None:
       ^--^---'--^---^-^--^--^---'--^---^-^-^-==-^--^---^-'hjw
 """)
 
-def ShowMenu(choice, help_level):
+def ShowMenu(choice, help_level=2):
     """
     Prints the menu specified to screen
 
@@ -837,6 +837,7 @@ def ShowMenu(choice, help_level):
         
         1) Login                [Enter your username and password, if you already have them]
         2) Create Account       [If you do not yet have a user name and password]
+        3) Exit Program         [Terminate your session]
     """
 
     loginMenuEnd = """
@@ -1275,6 +1276,109 @@ def ShowMenu(choice, help_level):
     # display the menu chosen at the correct level of help
     print(output)
 
+def authenticate(request) -> bool:
+    """ Consults the Authentication microservice (service A) and returns True for verified account"""
+
+    # Authentication either returns TRUE or FALSE
+    with open('auth_request_file.txt', "w") as file:
+        file.write(request)
+    # Wait for the microservice to process the request
+    time.sleep(2)  # Increase the delay to ensure the microservice has time to process
+
+    # Wait for the response file to be created
+    while not os.path.exists('auth_response.txt'):
+        time.sleep(0.5)  # Wait for the response file to appear
+
+    # Read the response from the response file
+    with open('auth_response.txt', "r") as file:
+        response = file.read().strip()
+
+    # Clear the response file after reading
+    with open('auth_response.txt', "w") as file:
+        file.write("")  # Clear the file contents
+
+    # convert text result to boolean value
+    if response == "SUCCESS":
+        determination = True
+    else:
+        determination = False
+
+    return determination
+
+def login():
+    """ Logs a user in."""
+
+    # Authenticate the user, then load their profile
+    while True:
+        ShowMenu('loginA')
+        login_choice = str(input())
+        print(" ")
+
+        # ----- EXISTING ACCOUNT -----
+        if login_choice == '1':
+            print("---------- LOG INTO EXISTING ACCOUNT ----------")
+            u_name = input("\tUSER NAME: ")
+            password = input("\tPASSWORD: ")
+
+            # Format the login message to the Authenticate Service
+            login_request = f"LOGIN {u_name} {password}"
+
+            # Consult MicroserviceA/Authentication
+            check_account = authenticate(login_request)
+
+            if check_account:
+                # Authentication microservice has verified a username-password match...login complete
+                print("SUCCESSFUL LOGIN...YOU MAY PROCEED...")
+
+                ShowMenu('loginB')
+                return {'u_name': u_name, 'password': password}
+            else:
+                # User not verified, return to login menu
+                print("INVALID CREDENTIALS, OR USER NOT FOUND...TRY AGAIN")
+                continue
+
+        # ----- NEW ACCOUNT -----
+        elif login_choice == '2':
+            print("---------- CREATE NEW ACCOUNT ----------")
+            new_user = input("Enter your username (5-20 characters and/or numbers)")
+            new_pass = input("Enter your password (5-20 characters and/or numbers")
+
+            # Format the login message to the Authenticate Service
+            signup_request = f"SIGNUP {new_user} {new_pass}"
+
+            # Authentication either returns TRUE or FALSE
+            created_account = authenticate(signup_request)
+
+            if created_account:
+                # Authentication microservice has verified creation of new username/password account
+                print("SUCCESSFULLY CREATED NEW ACCOUNT...YOU MAY PROCEED...")
+                return {'u_name': new_user, 'password': new_pass}
+
+            else:
+                # User not verified, return to login menu
+                print("USERNAME ALREADY EXISTS, OR IMPROPERLY ENTERED NAME/PASS...TRY AGAIN")
+                continue
+
+        # ----- NEW ACCOUNT -----
+        elif login_choice == '3':
+            return False
+
+        else:
+            # User entered something other than a 1 or 2
+            print("INVALID CHOICE, ENTER A '1' OR A '2'...")
+            continue
+
+def profile():
+    """"""
+    # --- INITIAL PROFILE CREATION (quick or custom) ---
+    print("You may create a user profile now...")
+    print("PROFILE CREATION OPTIONS:")
+    print("-------------------------")
+    print("""1) Quick Profile         [only enter minimum required data, may edit later]
+                     2) Custom Profile        [enter full profile data now]\n""")
+    new_prof_type = input("Choice: ")
+
+
 # ---------- Main: User Interface ----------
 def main():
     """
@@ -1305,80 +1409,17 @@ def main():
         collection = Library()
 
     # ----- OBJECT INSTANTIATION -----
-    # Initialize the help system
+    # Initialize the help and Microservice communications systems
     help_sys = Help()
-    # Initialize the Microservice communications system
     pipe = Pipeline('core')
 
     # ----- LOGIN  -----
-    logged_in_user = None
+    logged_in_user = login()
+    if not logged_in_user:
+        # User exited program at login screen
+        return
 
-    # !!!!! !!!! !!!!! Microservice ON/OFF SWITCH !!!!! !!!!! !!!!!
-    switch = 'OFF'
-    if switch == 'ON':
-
-        # Authenticate the user, then load their profile
-        while True:
-            login_choice = str(input())
-            if login_choice == '1':
-                print("---------- LOG INTO EXISTING ACCOUNT ----------")
-                ShowMenu('loginA', help_sys.assist_level)
-                u_name = input("\tUSER NAME: ")
-                password = input("\tPASSWORD: ")
-                ShowMenu('loginB', help_sys.assist_level)
-
-                # Format the login message to the Authenticate Service
-                login_request = {'action': 'login', 'data': {'u_name': u_name, 'password': password}}
-
-                # Authentication either returns TRUE or FALSE
-                verify = pipe.send('auth', login_request)
-
-                if verify:
-                    # Authentication microservice has verified a username-password match...login complete
-                    print("SUCCESSFUL LOGIN...YOU MAY PROCEED...")
-                    logged_in_user = {'u_name': u_name, 'password': password}
-                    break
-                else:
-                    # User not verified, return to login menu
-                    print("INVALID CREDENTIALS, OR USER NOT FOUND...TRY AGAIN")
-                    continue
-
-            elif login_choice == '2':
-                print("---------- CREATE NEW ACCOUNT ----------")
-                new_user = input("Enter your username (5-20 characters and/or numbers)")
-                new_pass = input("Enter your password (5-20 characters and/or numbers")
-
-                # Format the login message to the Authenticate Service
-                create_request = {'action': 'create', 'data': {'u_name': new_user, 'password': new_pass}}
-
-                # Authentication either returns TRUE or FALSE
-                verify = pipe.send('auth', create_request)
-
-                if verify:
-                    # Authentication microservice has verified creation of new username/password account
-                    print("SUCCESSFULLY CREATED NEW ACCOUNT...YOU MAY PROCEED...")
-                    logged_in_user = {'u_name': new_user, 'password': new_pass}
-                    break
-                else:
-                    # User not verified, return to login menu
-                    print("USERNAME ALREADY EXISTS, OR IMPROPERLY ENTERED NAME/PASS...TRY AGAIN")
-                    continue
-
-            else:
-                # User entered something other than a 1 or 2
-                print("INVALID CHOICE, ENTER A '1' OR A '2'...")
-                continue
-
-        # --- INITIAL PROFILE CREATION (quick or custom) ---
-        print("You may create a user profile now...")
-        print("PROFILE CREATION OPTIONS:")
-        print("-------------------------")
-        print("""1) Quick Profile         [only enter minimum required data, may edit later]
-                 2) Custom Profile        [enter full profile data now]\n""")
-        new_prof_type = input("Choice: ")
-
-
-
+    # ----- PROFILE -----
 
 
     # print the updates banner
@@ -1866,10 +1907,21 @@ def main():
 
         # --- DELETE USER ACCOUNT ---
         elif (choice == '8') and (logged_in_user == 'admin'):
-            pass
+            user_target = input('Enter the username of the user to delete: ')
+            result = authenticate(f"DELETE {user_target}")
+            if result:
+                print(f"Successfully deleted user {user_target}'s account!")
+                input("Press enter to continue...")
+                continue
+            else:
+                print("ERROR! Deletion request failed...")
+                input("Press enter to continue...")
+                continue
+
         # --- VIEW LOGS ---
         elif (choice == '9') and (logged_in_user == 'admin'):
             pass
+
         # --- DELETE LOGS ---
         elif (choice == '10') and (logged_in_user == 'admin'):
             pass
