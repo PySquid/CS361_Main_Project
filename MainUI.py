@@ -4,11 +4,11 @@
 # Description: Provides User Interface for Main Project, also serves as a mini monolith content manager
 
 # ---------- Imports ----------
-import socket
 import pickle
 import random
 import os
 import time
+from Pipeline import Pipeline
 
 # ---------- Classes ----------
 
@@ -642,152 +642,6 @@ class Help:
 
         pass
 
-
-class Pipeline:
-    """
-    This structure establishes a communication pipeline between the core UI/CMS and its plugin
-    microservices.
-
-    CALL:   pipeline.send('microservice recipient name string', data payload)
-    RETURNS: whatever data the microservice replies with...format is ['action': string, 'data': dictionary]
-
-    Whatever service initiates the contact must send [action, data], but responds with [reply]
-    """
-
-    def __init__(self, own_name):
-        """ Builds the initial address book for the pipeline communication services. """
-        self.address_book = {
-            'core': ('127.0.0.1', 20000),
-            'auth': ('127.0.0.1', 20001),
-            'profile': ('127.0.0.1', 20002),
-            'accounting': ('127.0.0.1', 20003),
-            'log': ('127.0.0.1', 20004)
-        }
-        self.name = own_name
-
-    def send(self, destination, data, buffer=2048):
-        """IS passed a socket tuple and data, returns the reply from recipient"""
-
-        # Map destination to address using the address book
-        if destination == 'core':
-            destination = self.address_book['core']
-        elif destination == 'auth':
-            destination = self.address_book['auth']
-        elif destination == 'profile':
-            destination = self.address_book['profile']
-        elif destination == 'accounting':
-            destination = self.address_book['accounting']
-        elif destination == 'log':
-            destination = self.address_book['log']
-        else:
-            return False
-
-        # Make an IPv4/TCP socket
-        core_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        # Connect to destination service
-        try:
-            # destination is a tuple: (IP, PORT), to match the socket library format
-            core_socket.connect(destination)
-
-            # !!!!! TESTING !!!!!
-            print(f"Transmitting data to {destination} now...")
-
-            if type(data) == str:
-                # it's a string...encode and send it
-                core_socket.sendall(data.encode())
-            else:
-                # it's a dictionary...pickle it and just send the bytes
-                pickled_data = pickle.dumps(data)
-                core_socket.sendall(pickled_data)
-
-            # Avoid race condition with destination service...
-            # ...allow processing time
-            # *** NOTE *** 2 seconds may not be enough...go to 3 if problems arise
-            time.sleep(3)
-
-            # Get reply from destination service, then decode it appropriately
-            response = core_socket.recv(buffer)
-
-            # Process strings vs pickled dictionaries
-            try:
-                # is it a string...?
-                processed_reply = str(response.decode())
-            except:
-                # ...if not, it's a pickled dictionary
-                processed_reply = pickle.loads(response)
-
-            # !!!!! TESTING !!!!!
-            print(f"{destination} responded with this data: '{processed_reply}'")
-
-        finally:
-            # Close the socket.
-            core_socket.close()
-
-        # provide the processed/decoded reply to the calling function
-        return processed_reply
-
-    def receive(self, rec_buffer=2048, max_connect=3, reply="ack") -> dict:
-        """
-        Takes no params, listens for TCP connections, then returns any message data received.
-
-        :param service_name: the name of the microservice calling this class
-        :param rec_buffer: default to 2048, this should not be changed
-        :param max_connect: generally, 1 should be the max connections, 3 is more than enough
-        :param reply: reply is the default reply from this method
-        :return: the action mode and the decoded message data is returned
-        """
-
-        # Prepare variables
-        data_decoded = None  # container for decoded incoming message
-        address = self.address_book[self.name]  # sets own address based on object name
-
-        # Set up a receiving IPv4/TCP socket
-        receive_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        # Bind it
-        receive_socket.bind(address)
-
-        # Start listening for messages from the Core/UI/CMS
-        receive_socket.listen(max_connect)
-
-        # Initialize return message container at METHOD-level scope
-        message_decoded = None
-
-        # Main loop: Initiate communications with the CMS/UI 'core'
-
-        try:
-            while True:
-                # Accept connection from UI
-                core_socket, core_ip = receive_socket.accept()
-
-                # !!!!! TESTING !!!!!
-                print(f"{core_ip} (Core UI) just connected")
-
-                try:
-                    # transfer the socket data to the 'data' variable
-                    message = core_socket.recv(rec_buffer)
-
-                    # try to decode the data as a string
-                    try:
-                        message_decoded = str(message.decode())
-
-                    # if that fails...it's a pickled dictionary, unpickle it
-                    except:
-                        message_decoded = pickle.loads(message)
-
-                finally:
-                    # Close connection to core
-                    core_socket.close()
-
-        finally:
-            # Close the connection
-            receive_socket.close()
-
-            # Make the response available to the calling function
-            return message_decoded
-
-
 # ---------- Functions ----------
 
 def title_banner() -> None:
@@ -1276,6 +1130,43 @@ def ShowMenu(choice, help_level=2):
     # display the menu chosen at the correct level of help
     print(output)
 
+def create_profile(pipe, username):
+    """ Gets a user's profile information from them and creates the profile. """
+
+    # --- INITIAL PROFILE CREATION (quick or custom) ---
+    print("You may create a user profile now...")
+    print("PROFILE CREATION OPTIONS:")
+    print("-------------------------")
+    print("""1) Quick Profile         [only enter minimum required data, may edit later]
+             2) Custom Profile        [enter full profile data now]\n""")
+    new_prof_type = input("Choice: ")
+
+    # Prep the profile creation data...
+    create_msg = {'action': 'create_user', 'u_name': username}
+
+    # --- QUICK ---
+    if new_prof_type == '1':
+        create_msg['first_name'] = input("Enter your first name: ")
+        create_msg['last_name'] = input("Enter your last name: ")
+        create_msg['age'] = ""
+        create_msg['address'] = ""
+        create_msg['phone'] = input("Enter your phone number: ")
+        create_msg['email'] = ""
+
+    # --- CUSTOM ---
+    elif new_prof_type == '2':
+        print("Custom profile chosen...creating now...")
+        create_msg['first_name'] = input("Enter your first name: ")
+        create_msg['last_name'] = input("Enter your last name: ")
+        create_msg['age'] = input("Enter your age: ")
+        create_msg['address'] = input("Enter your full address: ")
+        create_msg['phone'] = input("Enter your phone number: ")
+        create_msg['email'] = input("Enter your full email: ")
+
+    # Tell the Profile service to create a new profile with the above data (no reply)
+    pipe.send('profile', create_msg)
+    return create_msg
+
 def authenticate(request) -> bool:
     """ Consults the Authentication microservice (service A) and returns True for verified account"""
 
@@ -1286,11 +1177,11 @@ def authenticate(request) -> bool:
     time.sleep(2)  # Increase the delay to ensure the microservice has time to process
 
     # Wait for the response file to be created
-    while not os.path.exists('auth_response.txt'):
+    while not os.path.exists('auth_response_file.txt'):
         time.sleep(0.5)  # Wait for the response file to appear
 
     # Read the response from the response file
-    with open('auth_response.txt', "r") as file:
+    with open('auth_response_file.txt', "r") as file:
         response = file.read().strip()
 
     # Clear the response file after reading
@@ -1298,6 +1189,7 @@ def authenticate(request) -> bool:
         file.write("")  # Clear the file contents
 
     # convert text result to boolean value
+    print(f"response is {response}")
     if response == "SUCCESS":
         determination = True
     else:
@@ -1323,7 +1215,7 @@ def login(pipe):
             # Format the login message to the Authenticate Service
             login_request = f"LOGIN {u_name} {password}"
 
-            # Consult MicroserviceA/Authentication
+            # Consult MicroserviceA/Authentication - True or False...
             check_account = authenticate(login_request)
 
             if check_account:
@@ -1355,6 +1247,9 @@ def login(pipe):
 
                 create_profile(pipe, new_user)
 
+                # Give the profile service time to process
+                time.sleep(3)
+
                 return {'u_name': new_user, 'password': new_pass}
 
             else:
@@ -1371,45 +1266,37 @@ def login(pipe):
             print("INVALID CHOICE, ENTER A '1' OR A '2'...")
             continue
 
-def create_profile(pipe, username):
-    """ Gets a user's profile information from them and creates the profile. """
-
-    # --- INITIAL PROFILE CREATION (quick or custom) ---
-    print("You may create a user profile now...")
-    print("PROFILE CREATION OPTIONS:")
-    print("-------------------------")
-    print("""1) Quick Profile         [only enter minimum required data, may edit later]
-             2) Custom Profile        [enter full profile data now]\n""")
-    new_prof_type = input("Choice: ")
-
-    # --- QUICK ---
-    if new_prof_type == '1':
-        pass
-
-    # --- CUSTOM ---
-    elif new_prof_type == '2':
-        create_msg = {'action': 'create_user', 'u_name': username}
-
-        print("Custom profile chosen...creating now...")
-        create_msg['first_name'] = input("Enter your first name: ")
-        create_msg['last_name'] = input("Enter your last name: ")
-        create_msg['age'] = input("Enter your age: ")
-        create_msg['address'] = input("Enter your full address: ")
-        create_msg['phone'] = input("Enter your phone number: ")
-        create_msg['email'] = input("Enter your full email: ")
-
-        pipe.send('profile', create_msg)
-        return
-
-def fetch_profile(pipe, username):
+def fetch_profile_printout(pipe, username):
     """Takes a username, and returns the user's profile. """
 
     data = {'action': 'get_user_info', 'user_name': username}
-    reply = pipe.send('profile', data)
+    pipe.send('profile', data)
+    reply = pipe.receive()
+
     if reply == 'ERROR':
         return False
     else:
         return reply
+
+def fetch_profile(pipe, username) -> dict or bool:
+    """ Fetches a dictionary of all profile attributes from the profile service. """
+    data = {'action': 'get_user_dict', 'user_name': username}
+    pipe.send('profile', data)
+    reply = pipe.receive()
+
+    if reply == 'ERROR':
+        return False
+    else:
+        return reply
+
+def delete_profile(pipe, username) -> bool:
+    """ Deletes a user profile in the profile service, returns True if successful, False if not so. """
+    del_msg = {'action': 'delete_user', 'user_name': username}
+    reply = pipe.send('profile', del_msg)
+    if reply == 'DELETED':
+        return True
+    else:
+        return False
 
 
 # ---------- Main: User Interface ----------
@@ -1453,12 +1340,13 @@ def main():
         return
 
     # ----- PROFILE -----
-    fetch_profile(pipe, logged_in_user['uname'])
+    current_profile = fetch_profile(pipe, logged_in_user['u_name'])
 
     # print the updates banner
     if collection.get_banner():
         print(collection.get_banner())
     else:
+        print(f"Welcome {current_profile['first_name']}!")
         print("    ---------------------------")
         print("    ---      NO UPDATES     ---")
         print("    ---------------------------")
@@ -1470,7 +1358,7 @@ def main():
     while choice != '5':
 
         # print the main menu, according to which user is logged in
-        if logged_in_user == 'admin':
+        if logged_in_user['u_name'] == 'admin':
             ShowMenu('admin', help_sys.assist_level)
         else:
             ShowMenu('main', help_sys.assist_level)
@@ -1774,7 +1662,7 @@ def main():
         # \\\/// ADMIN OPTIONS ONLY \\\///
 
         # --- ADD A BOOK ---
-        if (choice == '6') and (logged_in_user == 'admin'):
+        if (choice == '6') and (logged_in_user['u_name'] == 'admin'):
             # Book parameters: [title, author, isbn, year, publisher, price]
 
             # Print the 'Add a Book' Menu
@@ -1813,7 +1701,7 @@ def main():
             continue
 
         # --- DELETE A BOOK ---
-        elif (choice == '7') and (logged_in_user == 'admin'):
+        elif (choice == '7') and (logged_in_user['u_name'] == 'admin'):
 
             # reference Menu for this option:
             """
@@ -1939,10 +1827,11 @@ def main():
             continue
 
         # --- DELETE USER ACCOUNT ---
-        elif (choice == '8') and (logged_in_user == 'admin'):
+        elif (choice == '8') and (logged_in_user['u_name'] == 'admin'):
             user_target = input('Enter the username of the user to delete: ')
-            result = authenticate(f"DELETE {user_target}")
-            if result:
+            result1 = authenticate(f"DELETE {user_target}")
+            result2 = delete_profile(pipe, user_target)
+            if result1 and result2:
                 print(f"Successfully deleted user {user_target}'s account!")
                 input("Press enter to continue...")
                 continue
@@ -1952,11 +1841,11 @@ def main():
                 continue
 
         # --- VIEW LOGS ---
-        elif (choice == '9') and (logged_in_user == 'admin'):
+        elif (choice == '9') and (logged_in_user['u_name'] == 'admin'):
             pass
 
         # --- DELETE LOGS ---
-        elif (choice == '10') and (logged_in_user == 'admin'):
+        elif (choice == '10') and (logged_in_user['u_name'] == 'admin'):
             pass
 
         # --- INVALID CHOICE ---

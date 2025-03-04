@@ -4,157 +4,12 @@
 # Description: Provides user profile functions
 
 # ---------- Imports ----------
-import socket
 import pickle
-import os
-import time
 import random
+from Pipeline import Pipeline
 
 
 # ---------- Classes ----------
-class Pipeline:
-    """
-    This structure establishes a communication pipeline between the core UI/CMS and its plugin
-    microservices.
-
-    CALL:   pipeline.send('microservice recipient name string', data payload)
-    RETURNS: whatever data the microservice replies with...format is ['action': string, 'data': dictionary]
-
-    Whatever service initiates the contact must send [action, data], but responds with [reply]
-    """
-
-    def __init__(self, own_name):
-        """ Builds the initial address book for the pipeline communication services. """
-        self.address_book = {
-            'core': ('127.0.0.1', 20000),
-            'auth': ('127.0.0.1', 20001),
-            'profile': ('127.0.0.1', 20002),
-            'accounting': ('127.0.0.1', 20003),
-            'log': ('127.0.0.1', 20004)
-        }
-        self.name = own_name
-
-    def send(self, destination, data, buffer=2048):
-        """IS passed a socket tuple and data, returns the reply from recipient"""
-
-        # Map destination to address using the address book
-        if destination == 'core':
-            destination = self.address_book['core']
-        elif destination == 'auth':
-            destination = self.address_book['auth']
-        elif destination == 'profile':
-            destination = self.address_book['profile']
-        elif destination == 'accounting':
-            destination = self.address_book['accounting']
-        elif destination == 'log':
-            destination = self.address_book['log']
-        else:
-            return False
-
-        # Make an IPv4/TCP socket
-        core_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        # Connect to destination service
-        try:
-            # destination is a tuple: (IP, PORT), to match the socket library format
-            core_socket.connect(destination)
-
-            # !!!!! TESTING !!!!!
-            print(f"Transmitting data to {destination} now...")
-
-            if type(data) == str:
-                # it's a string...encode and send it
-                core_socket.sendall(data.encode())
-            else:
-                # it's a dictionary...pickle it and just send the bytes
-                pickled_data = pickle.dumps(data)
-                core_socket.sendall(pickled_data)
-
-            # Avoid race condition with destination service...
-            # ...allow processing time
-            # *** NOTE *** 2 seconds may not be enough...go to 3 if problems arise
-            time.sleep(3)
-
-            # Get reply from destination service, then decode it appropriately
-            response = core_socket.recv(buffer)
-
-            # Process strings vs pickled dictionaries
-            try:
-                # is it a string...?
-                processed_reply = str(response.decode())
-            except:
-                # ...if not, it's a pickled dictionary
-                processed_reply = pickle.loads(response)
-
-            # !!!!! TESTING !!!!!
-            print(f"{destination} responded with this data: '{processed_reply}'")
-
-        finally:
-            # Close the socket.
-            core_socket.close()
-
-        # provide the processed/decoded reply to the calling function
-        return processed_reply
-
-    def receive(self, rec_buffer=2048, max_connect=3, reply="ack") -> dict:
-        """
-        Takes no params, listens for TCP connections, then returns any message data received.
-
-        :param service_name: the name of the microservice calling this class
-        :param rec_buffer: default to 2048, this should not be changed
-        :param max_connect: generally, 1 should be the max connections, 3 is more than enough
-        :param reply: reply is the default reply from this method
-        :return: the action mode and the decoded message data is returned
-        """
-
-        # Prepare variables
-        data_decoded = None  # container for decoded incoming message
-        address = self.address_book[self.name]  # sets own address based on object name
-
-        # Set up a receiving IPv4/TCP socket
-        receive_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        # Bind it
-        receive_socket.bind(address)
-
-        # Start listening for messages from the Core/UI/CMS
-        receive_socket.listen(max_connect)
-
-        # Initialize return message container at METHOD-level scope
-        message_decoded = None
-
-        # Main loop: Initiate communications with the CMS/UI 'core'
-
-        try:
-            while True:
-                # Accept connection from UI
-                core_socket, core_ip = receive_socket.accept()
-
-                # !!!!! TESTING !!!!!
-                print(f"{core_ip} (Core UI) just connected")
-
-                try:
-                    # transfer the socket data to the 'data' variable
-                    message = core_socket.recv(rec_buffer)
-
-                    # try to decode the data as a string
-                    try:
-                        message_decoded = str(message.decode())
-
-                    # if that fails...it's a pickled dictionary, unpickle it
-                    except:
-                        message_decoded = pickle.loads(message)
-
-                finally:
-                    # Close connection to core
-                    core_socket.close()
-
-        finally:
-            # Close the connection
-            receive_socket.close()
-
-            # Make the response available to the calling function
-            return message_decoded
 
 class User:
     def __init__(self, first, last, age, address, phone, email):
@@ -168,7 +23,9 @@ class User:
         self.card = None        # this is filled in by the system later
 
     def get_info(self) -> str:
-        """Returns a nicely formatted user profile data report"""
+        """Returns a nicely formatted user profile data report as a STRING ... NOT AN OBJECT OR DICTIONARY
+            * Tested and confirmed working. *
+        """
         output = "---------------------------------\n"
         output += f"NAME: {self.first_name} {self.last_name}\n"
         output += f"AGE: {self.age}\n"
@@ -177,7 +34,17 @@ class User:
         output += f"EMAIL: {self.email}\n"
         output += f"LIBRARY CARD NUMBER : {self.card}\n"
         output += "---------------------------------\n"
+        print(f'output is {output}')
         return output
+
+    def get_dict(self) -> dict:
+        """ Returns a dictionary of all the user attributes. """
+
+        out_dict = {'first_name': self.first_name, 'last_name': self.last_name, 'age': self.age,
+                    'address': self.address, 'phone': self.phone, 'email': self.email, 'card': self.card}
+
+        return out_dict
+
 
 class ProfileData:
     def __init__(self):
@@ -240,10 +107,11 @@ def main():
     """
 
     # Instantiate a Pipeline called 'pipe'
-    pipe = Pipeline('accounting')
+    pipe = Pipeline('profile')
 
     # ----- PROFILE DATABASE INITIATE -----
     # check for existing Profiles database
+
     try:
         with open('profile_data.pickle', "rb") as infile:
             # one already exists...load it
@@ -256,25 +124,32 @@ def main():
     # Initiate main (outer) loop.  [there's an inner loop in the Pipeline.receive() function]
     while True:
         # execute listening (blocking action) and assign result to 'new_message'
+        print('outer loop')
         new_message = pipe.receive()
+        print('done now')
 
         # Assign
+        print(f'new message is {new_message}')
         command = new_message['action']
-        data = new_message['data']
+        data = new_message                      # workaround to fuse original code convention with later one
+
+        # <<< DEBUGGING >>>
+        print(f" INCOMING...command is {command} and data is {data}!")
 
         # take action based on the command given in the message
 
         # --- CREATE NEW USER PROFILE ---
+        # * Tested and confirmed working *
         if command == 'create_user':
             u_name = data['u_name']
             # data format: dictionary with keys: [first_name, last_name, age, address, phone, email]
             f = data['first_name']
-            l = data['last_name']
+            last = data['last_name']
             age = data['age']
             addr = data['address']
             p = data['phone']
             e = data['email']
-            new = User(f, l, age, addr, p, e)
+            new = User(f, last, age, addr, p, e)
             profiles.add_user(u_name, new)
             continue
 
@@ -286,18 +161,33 @@ def main():
             if data['user_name'] in profiles.users.keys():
                 del profiles.users[data['user_name']]
                 del profiles.lib_cards[data['user_name']]
-                pipe.send('core', 'SUCCESS: user added')
+                pipe.send('core', 'DELETED')
             # ...if not, let the UI know what happened
             else:
                 pipe.send('core', 'ERROR: user not found!')
+
+        # --- GET USER PROFILE DICTIONARY ---
+        elif command == 'get_user_dict':
+            # data format {'user_name': username}
+            uname = data['user_name']
+            if uname in profiles.users.keys():
+                print(f"Get user info has found user {uname}, sending dict to core...")
+                print(f"sending THIS {profiles.users[uname].get_dict()}")
+                pipe.send('core', profiles.users[uname].get_dict())
+            else:
+                print("Get user info has encountered an error!")
+                pipe.send('core', 'ERROR')
 
         # --- GET USER PROFILE INFO ---
         elif command == 'get_user_info':
             # data format {'user_name': username}
             uname = data['user_name']
-            if uname in profiles.users:
+            if uname in profiles.users.keys():
+                print(f"Get user info has found user {uname}, sending info to core...")
+                print(f"sending THIS {profiles.users[uname].get_info()}")
                 pipe.send('core', profiles.users[uname].get_info())
             else:
+                print("Get user info has encountered an error!")
                 pipe.send('core', 'ERROR')
 
         # --- EDIT USER ---
