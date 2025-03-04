@@ -1383,7 +1383,8 @@ def main():
         # --- PROFILE ACCESS ---
         elif choice == '1':
 
-            """
+            """ (Menu appearance and user-facing options Reference)
+            
             1) View User Profile        [see your profile settings]
             2) Edit User Profile        [change your profile settings]
             3) Return to Main Menu
@@ -1452,6 +1453,10 @@ def main():
                         continue
 
                     edit_profile(pipe, logged_in_user['u_name'], change_this, to_this)
+
+                # RETURN TO MAIN
+                else:
+                    break
 
         # --- ACCOUNT ACCESS ---
         elif choice == '2':
