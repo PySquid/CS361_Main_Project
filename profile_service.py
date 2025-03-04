@@ -13,7 +13,7 @@ from Pipeline import Pipeline
 
 class User:
     def __init__(self, first, last, age, address, phone, email):
-        """"""
+        """ Initializes a new User object instance. """
         self.first_name = first
         self.last_name = last
         self.age = age
@@ -21,6 +21,7 @@ class User:
         self.phone = phone
         self.email = email
         self.card = None        # this is filled in by the system later
+        self.assist = None        # integer: persistent, user-specified override for menu assistance level
 
     def get_info(self) -> str:
         """Returns a nicely formatted user profile data report as a STRING ... NOT AN OBJECT OR DICTIONARY
@@ -41,9 +42,14 @@ class User:
         """ Returns a dictionary of all the user attributes. """
 
         out_dict = {'first_name': self.first_name, 'last_name': self.last_name, 'age': self.age,
-                    'address': self.address, 'phone': self.phone, 'email': self.email, 'card': self.card}
+                    'address': self.address, 'phone': self.phone, 'email': self.email, 'card': self.card,
+                    'assist': self.menu}
 
         return out_dict
+
+    def get_menu(self) -> int:
+        """ Returns the user's menu help override setting. """
+        return self.menu
 
 
 class ProfileData:

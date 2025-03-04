@@ -1298,6 +1298,13 @@ def delete_profile(pipe, username) -> bool:
     else:
         return False
 
+def edit_profile(pipe, username, old, new) -> None:
+    """ Sends a change order for a user to the Profile Microservice. """
+
+    data = {'action': 'edit_user', 'user_name': username, 'attribute': old, 'new_value': new}
+
+    pipe.send('profile', data)
+
 
 # ---------- Main: User Interface ----------
 def main():
@@ -1342,6 +1349,10 @@ def main():
     # ----- PROFILE -----
     current_profile = fetch_profile(pipe, logged_in_user['u_name'])
 
+    # update menu assist level from user profile if set
+    if current_profile['menu'] is not None:
+        help_sys.assist_level = current_profile['assist']
+
     # print the updates banner
     if collection.get_banner():
         print(collection.get_banner())
@@ -1371,7 +1382,76 @@ def main():
 
         # --- PROFILE ACCESS ---
         elif choice == '1':
-            pass
+
+            """
+            1) View User Profile        [see your profile settings]
+            2) Edit User Profile        [change your profile settings]
+            3) Return to Main Menu
+            """
+
+            # CHOICE LOOP
+            while True:
+                # Show the user the Search menu
+                ShowMenu('profile', help_sys.assist_level)
+
+                # Prompt user to select from menu
+                selection = input("Choice:  ")
+
+                # Reset variables
+                match = None
+                matches = None
+
+                # HELP
+                if selection == ('Help' or 'help' or 'HELP' or '#Help'):
+                    print("Returning to Main menu...choose option #4...")
+                    break
+
+                # RETURN TO MAIN
+                elif selection == ('Return' or 'return' or '#Return'):
+                    # return to main menu
+                    break
+
+                # VIEW PROFILE
+                elif selection == '1':
+                    fetch_profile_printout(pipe, logged_in_user['u_name'])
+                    continue
+
+                # EDIT PROFILE
+                elif selection == '2':
+                    print("""
+                    Enter the number of the setting you want to change:
+                        1) first name
+                        2) last name
+                        3) age
+                        4) address
+                        5) phone
+                        6) email
+                        7) default menu assist level
+                     """)
+                    change_this = input()
+
+                    print(" ")
+
+                    to_this = input("Enter the new value for this profile setting: ")
+                    if change_this == '1':
+                        change_this = 'first_name'
+                    elif change_this == '2':
+                        change_this = 'last_name'
+                    elif change_this == '3':
+                        change_this = 'age'
+                    elif change_this == '4':
+                        change_this = 'address'
+                    elif change_this == '5':
+                        change_this = 'phone'
+                    elif change_this == '6':
+                        change_this = 'email'
+                    elif change_this == '7':
+                        change_this = 'assist'
+                    else:
+                        print("ERROR, try again")
+                        continue
+
+                    edit_profile(pipe, logged_in_user['u_name'], change_this, to_this)
 
         # --- ACCOUNT ACCESS ---
         elif choice == '2':
@@ -1401,7 +1481,6 @@ def main():
                     # return to main menu
                     break
 
-                #              _____ ----- !!!!! UNDER CONSTRUCTION !!!!! ----- _____
                 # ACCESS RECYCLE BIN
                 if selection == ('RecycleBin' or 'recyclebin' or 'Recyclebin' or '#RecycleBin'):
                     pickled_files = os.listdir()
