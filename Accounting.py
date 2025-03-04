@@ -2,49 +2,36 @@
 # Author: Philip Sheridan
 # Class: CS361 / Oregon State University
 # Description: Provides finance and accounting functions
+# User stories: 1) check books in and out, 2) user can view their checked out books (and due dates???).
 
 # ---------- Imports ----------
-import socket
 import pickle
 import os
 import time
-import Pipeline
+from Pipeline import Pipeline
 
 # ---------- Classes ----------
 
 class AccountData:
     def __init__(self):
-        """"""
+        """ Initializes an instance of the main accounting object. """
         # create a space to store checked out books
 
         # FORMAT: dictionary1 = {USER -> checkout record}
-        #         dictionary2 (checkout record) = {BOOK SERIAL STRING -> due date, PRICE -> price of book}
-        self.checkouts = {}     # {user name: {S/N: DUE_DATE: date, PRICE: $price}}
-
-        # create a space to store users' account balances
-        self.balances = {}      # {USER NAME: $amount}
+        #           dictionary2 (checkout record) = {BOOK SERIAL STRING -> due date}
+        self.checkouts = {}     # {user name: {S/N: DUE_DATE: date}}
 
     def check_out(self, user, book_sn):
-        """"""
+        """ Checks a book out to a specific user. """
         pass
 
     def check_in(self, user, book_sn):
-        """"""
+        """ Checks a book back in that was checked out by a user. """
         pass
 
-    def get_balance(self, user):
-        """"""
-        return self.balances[user]
-
     def get_check_outs(self, user):
-        """"""
+        """ Returns the checked out books for a specified user. """
         return self.checkouts[user]
-
-    def get_past_due(self, user):
-        """Returns any books that are past due, for a user."""
-        late = None
-
-        return late
 
 
 # ---------- Functions ----------
@@ -82,24 +69,27 @@ def main():
 
         # Assign
         command = new_message['action']
-        data = new_message['data']
 
         # take action based on the command given in the message
 
         # --- CHECK BOOK OUT ---
-        if command == 'checkout':
+        if command == 'check_out':
             pass
 
         # --- CHECK BOOK IN ---
-        if command == 'checkout':
+        if command == 'check_in':
             pass
 
         # --- ACCOUNT INFO REQUEST ---
-        if command == 'checkout':
+        if command == 'get_account':
             pass
 
         # --- DUE DATES INQUIRY ---
-        if command == 'checkout':
+        if command == 'get_due_dates':
+            pass
+
+        # --- CHECKED OUT BOOK INQUIRY ---
+        if command == 'get_checkouts':
             pass
 
 
