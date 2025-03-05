@@ -12,6 +12,16 @@ from Pipeline import Pipeline
 # ---------- Classes ----------
 
 # ---------- Functions ----------
+def save_data(data) -> None:
+    # Save the change to persistent data structure
+    try:
+        with open(f"log_data.pickle", 'wb') as outfile:
+            pickle.dump(data, outfile, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # $$$ DEBUGGING $$$: provide info about errors
+    except FileNotFoundError:
+        print("ERROR SAVING Log data!!!")
+
 def main():
     """
     LOGGING MICROSERVICE

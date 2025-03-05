@@ -43,7 +43,7 @@ class User:
 
         out_dict = {'first_name': self.first_name, 'last_name': self.last_name, 'age': self.age,
                     'address': self.address, 'phone': self.phone, 'email': self.email, 'card': self.card,
-                    'assist': self.menu}
+                    'assist': self.assist}
 
         return out_dict
 
@@ -106,11 +106,23 @@ class ProfileData:
         return
 
 # ---------- Functions ----------
+def save_data(data) -> None:
+    # Save the change to persistent data structure
+    try:
+        with open(f"profile_data.pickle", 'wb') as outfile:
+            pickle.dump(data, outfile, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # $$$ DEBUGGING $$$: provide info about errors
+    except FileNotFoundError:
+        print("ERROR SAVING Profile data!!!")
+
 def main():
     """
     PROFILE MICROSERVICE
         This service keeps track of customer profile information
     """
+
+    print("PROFILE SERVICE ACTIVATED...all systems nominal")
 
     # Instantiate a Pipeline called 'pipe'
     pipe = Pipeline('profile')
@@ -130,9 +142,7 @@ def main():
     # Initiate main (outer) loop.  [there's an inner loop in the Pipeline.receive() function]
     while True:
         # execute listening (blocking action) and assign result to 'new_message'
-        print('outer loop')
         new_message = pipe.receive()
-        print('done now')
 
         # Assign
         print(f'new message is {new_message}')
@@ -157,6 +167,10 @@ def main():
             e = data['email']
             new = User(f, last, age, addr, p, e)
             profiles.add_user(u_name, new)
+
+            # Write change to database
+            save_data(profiles)
+
             continue
 
         # --- DELETE EXISTING USER PROFILE---
@@ -171,6 +185,9 @@ def main():
             # ...if not, let the UI know what happened
             else:
                 pipe.send('core', 'ERROR: user not found!')
+
+            # Write change to database
+            save_data(profiles)
 
         # --- GET USER PROFILE DICTIONARY ---
         elif command == 'get_user_dict':
@@ -203,6 +220,10 @@ def main():
             attribute = data['attribute']
             new_value = data['new_value']
             profiles.users[uname][attribute] = new_value
+
+            # Write change to database
+            save_data(profiles)
+
             continue
 
         # --- ERROR ---

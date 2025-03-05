@@ -112,7 +112,7 @@ class Library:
     # ----- METHODS -----
     def insert_book(self, in_book):
         """
-        Takes a book as a parameter, then adds the book to the collection, deconflicting the serial as well
+        Takes a book as a parameter, then adds the book to the collection, de-conflicting the serial as well
         :param in_book: takes a Book object
         :return: None
         """
@@ -312,18 +312,6 @@ class Library:
         else:
             output = False
         return output
-
-    def keyword_search(self, mode, term) -> (bool or Book):
-        """
-        Takes a search term (term) and type of search(eg: title/author/isbn), returns any matching results.
-            *** this feature is included to allow for partial term matching
-
-        :param mode:
-        :param term:
-        :return:
-        """
-
-        pass
 
     def checkout(self, sn):
         """ Updates a book in self.serials to set checkout to True. """
@@ -1312,14 +1300,47 @@ def edit_profile(pipe, username, old, new) -> None:
     """ Sends a change order for a user to the Profile Microservice. """
 
     data = {'action': 'edit_user', 'user_name': username, 'attribute': old, 'new_value': new}
-
     pipe.send('profile', data)
 
 def check_book_out(pipe, username, serial) -> str:
     """ Checks out  a book using the Accounting microservice. """
+
     message = {'action': 'check_out', 'user': username, 'sn': serial}
     pipe.send('accounting', message)
     return pipe.receive()
+
+def check_book_in(pipe, username, serial) -> None:
+    """ Checks out  a book using the Accounting microservice. """
+
+    message = {'action': 'check_in', 'user': username, 'sn': serial}
+    pipe.send('accounting', message)
+
+def get_checkouts(pipe, username) -> dict:
+    """ Takes a user, gets their checked out books from Accounting microservice, returns them. """
+
+    message = {'action': 'get_checkouts', 'user': username}
+    pipe.send('accounting', message)
+    reply = pipe.receive()
+    return reply
+
+def print_checkouts(pipe, username, collection) -> list:
+    """ Prints a user's checked out books and returns a list of their serials"""
+    print(" You have checked out the following books from the Library: ")
+    print("-------------------------------------------------------------")
+    checkouts = get_checkouts(pipe, username)  # dict: {sn: due date}
+
+    checkout_list = []  # list of serials
+    for key in checkouts.keys():
+        checkout_list.append(key)
+
+    number = 0
+    for sn in checkout_list:
+        number += 1
+        title = collection.book_by_serial(sn).get_title()
+        print(f"{number}: {title} | (due on {checkouts[sn]})")
+    print("-------------------------------------------------------------")
+    return checkout_list
+
 
 # ---------- Main: User Interface ----------
 def main():
@@ -1365,7 +1386,7 @@ def main():
     current_profile = fetch_profile(pipe, logged_in_user['u_name'])
 
     # update menu assist level from user profile if set
-    if current_profile['menu'] is not None:
+    if current_profile['assist'] is not None:
         help_sys.assist_level = current_profile['assist']
 
     # print the updates banner
@@ -1412,10 +1433,6 @@ def main():
 
                 # Prompt user to select from menu
                 selection = input("Choice:  ")
-
-                # Reset variables
-                match = None
-                matches = None
 
                 # HELP
                 if selection == ('Help' or 'help' or 'HELP' or '#Help'):
@@ -1482,17 +1499,13 @@ def main():
             2) View checked-out books    [titles and due dates]
             3) Return to Main Menu
             """
-            # CHOICE LOOP
+            # CHOICE LOOP (accounts)
             while True:
                 # Show the user the Search menu
                 ShowMenu('account', help_sys.assist_level)
 
                 # Prompt user to select from menu
                 selection = input("Choice:  ")
-
-                # Reset variables
-                match = None
-                matches = None
 
                 # HELP
                 if selection == ('Help' or 'help' or 'HELP' or '#Help'):
@@ -1506,11 +1519,19 @@ def main():
 
                 # Check book back in
                 if selection == '1':
-                    pass
+                    checked = print_checkouts(pipe, logged_in_user['u_name'], collection)
+                    in_target = int(input("Enter the number of the book to check back in..."))
+                    in_target -= 1      # adjust to align to array/list index 0
+                    if (in_target < len(checked)) and (in_target >= 0):
+                        collection.serials[checked[in_target]].checked_out = False
+                        check_book_in(pipe, logged_in_user['u_name'], checked[in_target])
+                    else:
+                        print("ERROR: book chosen does not exist! Try again...")
+                        continue
 
                 # View checked out books
                 elif selection == '2':
-                    pass
+                    print_checkouts(pipe, logged_in_user['u_name'], collection)
 
                 # Return to main menu
                 elif selection == '3':
@@ -1832,7 +1853,7 @@ def main():
             print("Goodbye!")
             break
 
-        # \\\/// ADMIN OPTIONS ONLY \\\///
+        # ///\\\///\\\///\\\ ADMIN OPTIONS ONLY ///\\\///\\\///\\\
 
         # --- ADD A BOOK ---
         if (choice == '6') and (logged_in_user['u_name'] == 'admin'):

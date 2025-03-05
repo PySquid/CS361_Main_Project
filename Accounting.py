@@ -26,19 +26,38 @@ class AccountData:
         """ Checks a book out to a specific user. """
         present = datetime.now()
         due_date = str(present + timedelta(days=14))
-        self.checkouts[user][book_sn] = due_date
+        if user in self.checkouts.keys():
+            self.checkouts[user][book_sn] = due_date
+        else:
+            self.checkouts[user] = {book_sn: due_date}
+        print(f"{user} has just checked out book with serial number {book_sn}")
         return due_date
 
-    def check_in(self, user, book_sn):
+    def check_in(self, user, book_sn) -> None:
         """ Checks a book back in that was checked out by a user. """
-        pass
+        del self.checkouts[user][book_sn]
+        print(f"{user} has just checked in book with serial number {book_sn}")
 
     def get_check_outs(self, user):
         """ Returns the checked out books for a specified user. """
-        return self.checkouts[user]
+        print(f"{user} has just requested a record of their checked out books...")
+        if user in self.checkouts.keys():
+            return self.checkouts[user]
+        else:
+            return {}
 
 
 # ---------- Functions ----------
+def save_data(data) -> None:
+    # Save the change to persistent data structure
+    try:
+        with open(f"accounting_data.pickle", 'wb') as outfile:
+            pickle.dump(data, outfile, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # $$$ DEBUGGING $$$: provide info about errors
+    except FileNotFoundError:
+        print("ERROR SAVING Accounting data!!!")
+
 def main():
     """
     ACCOUNTING MICROSERVICE
@@ -50,6 +69,8 @@ def main():
         4) track user monetary due balance
         5) charge customers late fees to their balance
     """
+
+    print("ACCOUNTING SERVICE ACTIVATED...all systems nominal")
 
     # Instantiate a Pipeline
     pipe = Pipeline('accounting')
@@ -82,20 +103,16 @@ def main():
             pipe.send('core', reply)
 
         # --- CHECK BOOK IN ---
-        if command == 'check_in':
-            pass
-
-        # --- ACCOUNT INFO REQUEST ---
-        if command == 'get_account':
-            pass
-
-        # --- DUE DATES INQUIRY ---
-        if command == 'get_due_dates':
-            pass
+        elif command == 'check_in':
+            accounts.check_in(new_message['user'], new_message['sn'])
 
         # --- CHECKED OUT BOOK INQUIRY ---
-        if command == 'get_checkouts':
-            pass
+        elif command == 'get_checkouts':
+            message = accounts.get_check_outs(new_message['user'])
+            pipe.send('core', message)
+
+        else:
+            print(f"ERROR...INVALID COMMAND ({command}) RECEIVED!")
 
 
 # Execute Program
