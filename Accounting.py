@@ -9,6 +9,7 @@ import pickle
 import os
 import time
 from Pipeline import Pipeline
+from datetime import datetime, timedelta
 
 # ---------- Classes ----------
 
@@ -19,11 +20,14 @@ class AccountData:
 
         # FORMAT: dictionary1 = {USER -> checkout record}
         #           dictionary2 (checkout record) = {BOOK SERIAL STRING -> due date}
-        self.checkouts = {}     # {user name: {S/N: DUE_DATE: date}}
+        self.checkouts = {}     # {user name: {S/N: DUE_DATE}}
 
-    def check_out(self, user, book_sn):
+    def check_out(self, user, book_sn) -> str:
         """ Checks a book out to a specific user. """
-        pass
+        present = datetime.now()
+        due_date = str(present + timedelta(days=14))
+        self.checkouts[user][book_sn] = due_date
+        return due_date
 
     def check_in(self, user, book_sn):
         """ Checks a book back in that was checked out by a user. """
@@ -74,7 +78,8 @@ def main():
 
         # --- CHECK BOOK OUT ---
         if command == 'check_out':
-            pass
+            reply = accounts.check_out(new_message['user'], new_message['sn'])
+            pipe.send('core', reply)
 
         # --- CHECK BOOK IN ---
         if command == 'check_in':

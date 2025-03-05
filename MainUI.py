@@ -26,13 +26,15 @@ class Book:
         self.price = price          # integer
         self.rating = None          # integer
         self.summary = None         # string
+        self.checked_out = False
 
     # ----- METHODS -----
     def get_info(self):
         """Returns the book's main attributes as a dictionary"""
 
         return({'title': self.title, 'author': self.author, 'isbn': self.isbn, 'serial': self.serial, 'year': self.year,
-                'publisher': self.publisher, 'price': self.price, 'rating': self.rating, 'summary': self.summary})
+                'publisher': self.publisher, 'price': self.price, 'rating': self.rating,
+                'summary': self.summary, 'checked_out': self.checked_out})
 
     def view(self):
         """"""
@@ -51,6 +53,10 @@ class Book:
             print(f"Summary: {self.summary}")
         else:
             print(f"Summary: (Not yet summarized)")
+        if self.checked_out:
+            print(f"Checked out? ... YES")
+        else:
+            print(f"Checked out? ... NO")
 
     def get_title(self) -> str:
         """
@@ -318,6 +324,10 @@ class Library:
         """
 
         pass
+
+    def checkout(self, sn):
+        """ Updates a book in self.serials to set checkout to True. """
+        self.serials[sn].checkout = True
 
 class Comment:
     def __init__(self, title, subject, text, question) -> (bool or None):
@@ -1006,7 +1016,7 @@ def ShowMenu(choice, help_level=2):
             Account Settings Menu: 
                 This is the settings menu, please select from the options below:
 
-            1) View account balance     [See how much money you owe to the library]
+            1) Check book in            [Choose (from list) and return a book you have checked out]
             2) View checked-out books   [View the books you have checked out, and due dates]
             3) Return to Main Menu	
 
@@ -1020,8 +1030,8 @@ def ShowMenu(choice, help_level=2):
             Account Settings Menu: 
                 This is the settings menu, please select from the options below:
 
-            1) View account balance     [finance and accounting]
-            2) View checked-out books   [titles and due dates]
+            1) Check book in             [Checked out books will be listed to choose from]
+            2) View checked-out books    [titles and due dates]
             3) Return to Main Menu	
 
             -----------
@@ -1034,7 +1044,7 @@ def ShowMenu(choice, help_level=2):
             Account Settings Menu: 
                 This is the settings menu, please select from the options below:
 
-            1) View account balance
+            1) Check a book back in
             2) View checked-out books
             3) Return to Main Menu	
 
@@ -1305,6 +1315,11 @@ def edit_profile(pipe, username, old, new) -> None:
 
     pipe.send('profile', data)
 
+def check_book_out(pipe, username, serial) -> str:
+    """ Checks out  a book using the Accounting microservice. """
+    message = {'action': 'check_out', 'user': username, 'sn': serial}
+    pipe.send('accounting', message)
+    return pipe.receive()
 
 # ---------- Main: User Interface ----------
 def main():
@@ -1460,7 +1475,49 @@ def main():
 
         # --- ACCOUNT ACCESS ---
         elif choice == '2':
-            pass
+            """
+            menu reference:
+            
+            1) Check book in             [Checked out books will be listed to choose from]
+            2) View checked-out books    [titles and due dates]
+            3) Return to Main Menu
+            """
+            # CHOICE LOOP
+            while True:
+                # Show the user the Search menu
+                ShowMenu('account', help_sys.assist_level)
+
+                # Prompt user to select from menu
+                selection = input("Choice:  ")
+
+                # Reset variables
+                match = None
+                matches = None
+
+                # HELP
+                if selection == ('Help' or 'help' or 'HELP' or '#Help'):
+                    print("Returning to Main menu...choose option #4...")
+                    break
+
+                # RETURN TO MAIN
+                if selection == ('Return' or 'return' or '#Return'):
+                    # return to main menu
+                    break
+
+                # Check book back in
+                if selection == '1':
+                    pass
+
+                # View checked out books
+                elif selection == '2':
+                    pass
+
+                # Return to main menu
+                elif selection == '3':
+                    break
+
+            # feed back into the Main menu
+            continue
 
         # --- SEARCH FOR BOOK---
         elif choice == '3':
@@ -1515,7 +1572,7 @@ def main():
                             with open(pickled_only[found - 1], "rb") as infile:
                                 recover_file = pickle.load(infile)
 
-                        # $$$ TESTING $$$: provide info about errors
+                        # Provide info about errors
                         except AttributeError:
                             return 'FAIL-Attribute'
                         except EOFError:
@@ -1569,7 +1626,7 @@ def main():
                     print('Invalid selection, try again...')
                     continue
 
-                # SEARCH RESULTS
+                # SEARCH RESULT for Serial search
                 if match:
                     print("Is the book below the one you are looking for? (1: yes / 2: no ")
                     match.get_title()
@@ -1577,13 +1634,28 @@ def main():
                     if found == 1:
                         print("ACQUISITION CONFIRMED! Displaying your book now...\n")
                         match.view()
-                        input("Press 'enter' to return to the main menu... ")
+
+                        # --- CHECK OUT BOOK? ---
+                        if match.checked_out:
+                            input("Press 'enter' to return to the main menu... ")
+                        else:
+                            out = input("Book is available for checkout, do you want to check it out? (1: yes, 2: no")
+                            if out == '1':
+                                # Update library
+                                collection.checkout(search_term)
+                                # Update Accounting Microservice
+                                due = check_book_out(pipe, logged_in_user['u_name'], match.get_serial())
+                                print(f"SUCCESS: your book is due on {due}")
+                            else:
+                                input("Press 'enter' to return to the main menu... ")
                         break
 
                 # Display matching books to user
                 print("Your search yielded the following results: \n")
 
                 # 'order' assigns a 1-up number to each book in the list to aid in identification
+
+                # SEARCH RESULT for Title and Author search
                 order = 0
                 if matches:
                     for i in matches:
@@ -1597,10 +1669,27 @@ def main():
                         acquired = int(input("Enter the BOOK NUMBER of the book you want to view: "))
                         print("This is the book title you have selected: \n")
                         print(collection.book_by_serial(matches[acquired - 1]).get_title())
+                        selected_serial = matches[acquired - 1]
                         acquisition = int(input("Is this the book you want to view? (1: yes / 2: no)"))
                         if acquisition == 1:
                             print("Displaying your book information now...\n")
-                            collection.book_by_serial(matches[acquired - 1]).view()
+                            selected_book = collection.book_by_serial(matches[acquired - 1])
+                            selected_book.view()
+
+                            # --- CHECK OUT BOOK? ---
+                            if selected_book.checked_out:
+                                input("Press 'enter' to return to the main menu... ")
+                            else:
+                                out = input(
+                                    "Book is available for checkout, do you want to check it out? (1: yes, 2: no")
+                                if out == '1':
+                                    # Update library
+                                    collection.checkout(selected_serial)
+                                    # Update Accounting Microservice
+                                    due = check_book_out(pipe, logged_in_user['u_name'], selected_serial)
+                                    print(f"SUCCESS: your book is due on {due}")
+                                else:
+                                    print('(No checkout)')
                             input("\nPress 'enter' to return  to the main menu")
                             break
 
