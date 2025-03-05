@@ -1264,15 +1264,15 @@ def login(pipe):
             print("INVALID CHOICE, ENTER A '1' OR A '2'...")
             continue
 
-def fetch_profile_printout(pipe, username):
-    """Takes a username, and returns the user's profile. """
+def fetch_profile_printout(pipe, username) -> str:
+    """Takes a username, and returns the user's profile as a string. """
 
     data = {'action': 'get_user_info', 'user_name': username}
     pipe.send('profile', data)
     reply = pipe.receive()
 
     if reply == 'ERROR':
-        return False
+        return 'ERROR'
     else:
         return reply
 

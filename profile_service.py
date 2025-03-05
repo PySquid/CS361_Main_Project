@@ -47,9 +47,9 @@ class User:
 
         return out_dict
 
-    def get_menu(self) -> int:
+    def get_assist(self) -> int:
         """ Returns the user's menu help override setting. """
-        return self.menu
+        return self.assist
 
     def edit(self, old, new,):
         """ Changes a value """
@@ -198,8 +198,6 @@ def main():
             # data format {'user_name': username}
             uname = data['user_name']
             if uname in profiles.users.keys():
-                print(f"Get user info has found user {uname}, sending dict to core...")
-                print(f"sending THIS {profiles.users[uname].get_dict()}")
                 pipe.send('core', profiles.users[uname].get_dict())
             else:
                 print("Get user info has encountered an error!")
@@ -219,7 +217,7 @@ def main():
 
         # --- EDIT USER ---
         elif command == 'edit_user':
-            # data format {[}'user_name': username, 'attribute': a user attr. , 'new_value': new attr. value}
+            # data format {'user_name': username, 'attribute': a user attr. , 'new_value': new attr. value}
             uname = data['user_name']
             attribute = data['attribute']
             new_value = data['new_value']

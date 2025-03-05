@@ -109,7 +109,6 @@ class Pipeline:
 
                     # if that fails...it's a pickled dictionary, unpickle it
                     except:
-                        print('found a pickled dictionary')
                         message_decoded = pickle.loads(message)
 
                 finally:
