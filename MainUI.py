@@ -1341,6 +1341,15 @@ def print_checkouts(pipe, username, collection) -> list:
     print("-------------------------------------------------------------")
     return checkout_list
 
+def save_data(data) -> None:
+    # Save the change to persistent data structure
+    try:
+        with open(f"library.pickle", 'wb') as outfile:
+            pickle.dump(data, outfile, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # $$$ DEBUGGING $$$: provide info about errors
+    except FileNotFoundError:
+        print("ERROR SAVING Library data!!!")
 
 # ---------- Main: User Interface ----------
 def main():
@@ -1446,7 +1455,8 @@ def main():
 
                 # VIEW PROFILE
                 elif selection == '1':
-                    fetch_profile_printout(pipe, logged_in_user['u_name'])
+                    reply = fetch_profile_printout(pipe, logged_in_user['u_name'])
+                    print(f"\n{reply}\n")
                     continue
 
                 # EDIT PROFILE
@@ -1887,8 +1897,9 @@ def main():
             year = int(input("Please enter the Book's publication year:  "))
             price = float(input("Please enter the Book's price without $ sign (ex: 5.25):  $"))
 
-            # Create a new book and add it to the Library collection
+            # Create a new book and add it to the Library collection, then save the collection
             collection.add_book(Book(title, author, isbn, pub, year, price))
+            save_data(collection)
 
             print("Book entered and recorded, thank you!")
             print("-----------------------------------------------------------------------------------\n \n")
@@ -1962,6 +1973,7 @@ def main():
                         if recycle == 'delete':
                             collection.delete_book(match.get_serial())
                             print("Deletion confirmed!")
+                            save_data(collection)
                             print("Book will remain in recycle bin for a limited time, and can be"
                                   "recovered by performing a Book Search of recycled books.")
 
@@ -1992,6 +2004,7 @@ def main():
                             if confirm == 'delete':
                                 collection.delete_book(matches[doom - 1])
                                 print("Deletion confirmed!")
+                                save_data(collection)
                                 print("Book will remain in recycle bin for a limited time, and can be "
                                       "recovered by performing a Book Search of recycled books.")
 

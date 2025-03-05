@@ -51,6 +51,10 @@ class User:
         """ Returns the user's menu help override setting. """
         return self.menu
 
+    def edit(self, old, new,):
+        """ Changes a value """
+        setattr(self, old, new)
+
 
 class ProfileData:
     def __init__(self):
@@ -219,11 +223,8 @@ def main():
             uname = data['user_name']
             attribute = data['attribute']
             new_value = data['new_value']
-            profiles.users[uname][attribute] = new_value
-
-            # Write change to database
+            profiles.users[uname].edit(attribute, new_value)
             save_data(profiles)
-
             continue
 
         # --- ERROR ---
