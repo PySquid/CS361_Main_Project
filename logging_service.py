@@ -10,6 +10,7 @@ import os
 from datetime import datetime as dt
 from datetime import timedelta
 from Pipeline import Pipeline
+import threading
 
 # ---------- Classes ----------
 
@@ -26,7 +27,8 @@ def save_data(data) -> None:
 
 def del_old() -> None:
     """ Checks for log files older than 7 days and deletes them."""
-    pass
+    current_directory = os.curdir
+    log_directory = os.path.relpath('/logs', current_directory)
 
 def process_logs(buffer) -> None:
     """ Continuously reads the buffer and writes all entries to disk. """
@@ -66,18 +68,17 @@ def main():
 
     # Prepare a buffer for incoming logs, begin buffer processing
     buffer = []
-    threading.Thread(target=nonblocking, daemon=True, args=(mgmt_ip, mgmt_port)).start()
+    threading.Thread(target=process_logs, daemon=True, args=buffer).start()
 
-    # ----- LOG DATABASE INITIATE -----
-    # check for existing logs database
-    try:
-        with open('log_data.pickle', "rb") as infile:
-            # one already exists...load it
-            logs = pickle.load(infile)
-
-    # No logs database yet? make a blank dictionary to hold the logs
-    except FileNotFoundError:
-        logs = {}
+    # ----- LOG FILE: INITIATE -----
+    # Initialize logs dictionary
+    if os.path.exists('logs'):
+        # If the directory exists, change to it
+        os.chdir('logs')
+    else:
+        # Create the directory if absent
+        os.makedirs('logs')
+        os.chdir('logs')
 
     # Initiate main (outer) loop.  [there's an inner loop in the Pipeline.receive() function]
     while True:
