@@ -9,6 +9,8 @@ import random
 import os
 import time
 from Pipeline import Pipeline
+from datetime import datetime as dt
+from datetime import timedelta as delta
 
 # ---------- Classes ----------
 
@@ -1351,6 +1353,22 @@ def save_data(data) -> None:
     except FileNotFoundError:
         print("ERROR SAVING Library data!!!")
 
+def log_event(pipe, user, trigger):
+    """ Sends a user and action with date to the logging microservice to be recorded. """
+    message = {'action': 'log', 'log':{'user': user, 'trigger': trigger}}
+    pipe.send('log', message)
+
+def view_log(pipe, days_past) -> None:
+    """ Displays the log for a day, delineated by the number of days in the past from today. """
+    if type(days_past) != int:
+        days_past = int(days_past)
+    message = {'action': 'view', 'days_past': days_past}
+    pipe.send('log', message)
+    report = pipe.receive()
+    print("------------------- LOG VIEWER -------------------------")
+    print(report)
+    print("--------------------------------------------------------")
+
 # ---------- Main: User Interface ----------
 def main():
     """
@@ -1390,6 +1408,7 @@ def main():
     if not logged_in_user:
         # User exited program at login screen
         return
+    log_event(pipe, logged_in_user['u_name'], 'LOGGED IN')
 
     # ----- PROFILE -----
     current_profile = fetch_profile(pipe, logged_in_user['u_name'])
@@ -1455,12 +1474,14 @@ def main():
 
                 # VIEW PROFILE
                 elif selection == '1':
+                    log_event(pipe, logged_in_user['u_name'], 'VIEWED PROFILE')
                     reply = fetch_profile_printout(pipe, logged_in_user['u_name'])
                     print(f"\n{reply}\n")
                     continue
 
                 # EDIT PROFILE
                 elif selection == '2':
+                    log_event(pipe, logged_in_user['u_name'], 'EDITED PROFILE')
                     print("""
                     Enter the number of the setting you want to change:
                         1) first name
@@ -1529,6 +1550,8 @@ def main():
 
                 # Check book back in
                 if selection == '1':
+                    log_event(pipe, logged_in_user['u_name'], 'CHECKED IN BOOK')
+
                     checked = print_checkouts(pipe, logged_in_user['u_name'], collection)
                     in_target = int(input("Enter the number of the book to check back in..."))
                     in_target -= 1      # adjust to align to array/list index 0
@@ -1541,6 +1564,8 @@ def main():
 
                 # View checked out books
                 elif selection == '2':
+                    log_event(pipe, logged_in_user['u_name'], 'VIEWED CHECKED OUT BOOKS')
+
                     print_checkouts(pipe, logged_in_user['u_name'], collection)
 
                 # Return to main menu
@@ -1552,6 +1577,7 @@ def main():
 
         # --- SEARCH FOR BOOK---
         elif choice == '3':
+            log_event(pipe, logged_in_user['u_name'], 'SEARCHED FOR BOOK')
             # CHOICE LOOP
             while True:
                 # Show the user the Search menu
@@ -1576,6 +1602,7 @@ def main():
 
                 # ACCESS RECYCLE BIN
                 if selection == ('RecycleBin' or 'recyclebin' or 'Recyclebin' or '#RecycleBin'):
+
                     pickled_files = os.listdir()
 
                     # Find all pickled files in local directory of UI/CMS Monolith
@@ -1620,6 +1647,7 @@ def main():
 
                         # RECOVER RECYCLED FILE TO COLLECTION
                         if confirm == 'recover':
+                            log_event(pipe, logged_in_user['u_name'], 'RECOVERED A BOOK')
 
                             # insert the book back into the collection
                             collection.insert_book(recover_file)
@@ -1672,6 +1700,7 @@ def main():
                         else:
                             out = input("Book is available for checkout, do you want to check it out? (1: yes, 2: no")
                             if out == '1':
+                                log_event(pipe, logged_in_user['u_name'], 'CHECKED OUT BOOK')
                                 # Update library
                                 collection.checkout(search_term)
                                 # Update Accounting Microservice
@@ -1714,6 +1743,7 @@ def main():
                                 out = input(
                                     "Book is available for checkout, do you want to check it out? (1: yes, 2: no")
                                 if out == '1':
+                                    log_event(pipe, logged_in_user['u_name'], 'CHECKED OUT BOOK')
                                     # Update library
                                     collection.checkout(selected_serial)
                                     # Update Accounting Microservice
@@ -1754,6 +1784,7 @@ def main():
 
         # --- GET HELP ---
         elif choice == '4':
+            log_event(pipe, logged_in_user['u_name'], 'ACCESSED HELP SYSTEM')
             """Help Menu: 
                 This is the help menu, please select from the options below:
                     1) FAQs			            
@@ -1848,6 +1879,7 @@ def main():
 
         # --- SAVE and EXIT ---
         elif choice == '5':
+            log_event(pipe, logged_in_user['u_name'], 'PROPERLY EXITED THE SYSTEM')
             # Save library state and exit
 
             # Create a new library if not present
@@ -1867,6 +1899,7 @@ def main():
 
         # --- ADD A BOOK ---
         if (choice == '6') and (logged_in_user['u_name'] == 'admin'):
+            log_event(pipe, logged_in_user['u_name'], 'ADDED A BOOK')
             # Book parameters: [title, author, isbn, year, publisher, price]
 
             # Print the 'Add a Book' Menu
@@ -1907,7 +1940,7 @@ def main():
 
         # --- DELETE A BOOK ---
         elif (choice == '7') and (logged_in_user['u_name'] == 'admin'):
-
+            log_event(pipe, logged_in_user['u_name'], 'DELETED A BOOK')
             # reference Menu for this option:
             """
             Delete a Book: 
@@ -2035,6 +2068,7 @@ def main():
 
         # --- DELETE USER ACCOUNT ---
         elif (choice == '8') and (logged_in_user['u_name'] == 'admin'):
+            log_event(pipe, logged_in_user['u_name'], 'DELETED A  PROFILE')
             user_target = input('Enter the username of the user to delete: ')
             result1 = authenticate(f"DELETE {user_target}")
             result2 = delete_profile(pipe, user_target)

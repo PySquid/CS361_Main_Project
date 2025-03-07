@@ -8,61 +8,62 @@ import pickle
 import time
 import os
 from datetime import datetime as dt
-from datetime import timedelta
 from Pipeline import Pipeline
 import threading
 
 # ---------- Classes ----------
 
 # ---------- Functions ----------
-def save_data(data) -> None:
-    # Save the change to persistent data structure
-    try:
-        with open(f"log_data.pickle", 'wb') as outfile:
-            pickle.dump(data, outfile, protocol=pickle.HIGHEST_PROTOCOL)
-
-    # $$$ DEBUGGING $$$: provide info about errors
-    except FileNotFoundError:
-        print("ERROR SAVING Log data!!!")
-
-def del_old(today) -> None:
+def del_old() -> None:
     """ Checks for log files older than 7 days and deletes them."""
-    current_directory = os.curdir
-    log_directory = os.path.relpath('/logs', current_directory)
-    os.chdir(log_directory)
-    contents = os.listdir()
-    
-    cutoff = today - timedelta(days=7)
-
-    for d in contents:
-        
+    while True:
+        contents = os.listdir()
+        print(contents)
+        # Sort the newest dates to the front
+        contents.sort(reverse=True)
+        old = []
+        if len(contents) > 7:
+            old = contents[7:]
+            print("old is ", old)
+        for i in old:
+            if i.endswith('.log'):
+                print(f'deleting {i}')
+                os.remove(i)
+        time.sleep(3600)
 
 def process_logs(buffer) -> None:
-    """ Continuously reads the buffer and writes all entries to disk. """
+    """ Continuously reads the buffer and writes all entries to disk as log files. """
     while True:
-        time.sleep(2)
+        time.sleep(3)
         if len(buffer) > 0:
             log = buffer.pop(0)
 
+            print(f'adding a new log entry for: {log}')
+
+            # set the day
+            today = dt.now().date().strftime('%m-%d-%Y')
+
             # Prepare entry
-            entry = f"{log['time']} | {log['user']} | {log['action']}\n"
+            entry = f"{dt.now().strftime('%m-%d-%Y  %H:%M:%S')} | {log['user']} | {log['trigger']}\n"
+            print(f"new entry is: {entry}")
 
             # Determine file name for current day's log
-            today = dt.now()
-            year = today.year
-            month = today.month
-            day = today.day
-            file_name = f"{month}/{day}/{year}.log"
+            file_name = f"{today}.log"
 
             # Make the entry into the log file
             with open(file_name, 'a') as f:
                 f.write(entry)
 
-            # Check for old logs and delete them
-            del_old(today)
-
-
-
+def generate_rpt(past) -> str:
+    """ Prepares and returns a report for a day, param being # days in past (0 = today)"""
+    contents = os.listdir()
+    contents.sort(reverse=True)
+    chosen = contents[past]
+    report = ""
+    with open(chosen, 'r') as log:
+        for line in log:
+            report += f"{line}\n"
+    return report
 
 def main():
     """
@@ -71,23 +72,29 @@ def main():
     """
 
     # Instantiate a Pipeline called 'pipe'
-    pipe = Pipeline('profile')
+    pipe = Pipeline('log')
 
-    # Prepare a buffer for incoming logs, begin buffer processing
-    buffer = []
-    threading.Thread(target=process_logs, daemon=True, args=buffer).start()
-
-    # ----- LOG FILE: INITIATE -----
+    # ----- LOG SUB-FOLDER: INITIATE -----
     # Initialize logs dictionary
     if os.path.exists('logs'):
         # If the directory exists, change to it
         os.chdir('logs')
     else:
-        # Create the directory if absent
+        # Create the directory if absent, then make it the active directory
         os.makedirs('logs')
         os.chdir('logs')
 
-    # Initiate main (outer) loop.  [there's an inner loop in the Pipeline.receive() function]
+    # Prepare a buffer for incoming logs, begin buffer processing
+    buffer = []
+
+    # 'outer' is the outer list wrapper needed to pass the list to the thread...its only purpose
+    outer = [buffer]
+    threading.Thread(target=process_logs, daemon=True, args=outer).start()
+
+    # Start old-log deletion daemon
+    threading.Thread(target=del_old, daemon=True).start()
+
+    # --- MAIN MESSAGE HANDLER LOOP ---
     while True:
         # execute listening (blocking action) and assign result to 'new_message'
         new_message = pipe.receive()
@@ -98,12 +105,13 @@ def main():
         # take action based on the command given in the message
 
         # --- RECORD INCOMING LOG  ---
-        if command == 'record':
+        if command == 'log':
             buffer.append(new_message['log'])
 
         # --- REQUEST TO VIEW LOGS  ---
         elif command == 'view':
-            pass
+            report = generate_rpt(new_message['days_past'])
+            pipe.send('core', report)
 
         # --- ERROR ---
         else:
