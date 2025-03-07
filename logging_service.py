@@ -25,10 +25,17 @@ def save_data(data) -> None:
     except FileNotFoundError:
         print("ERROR SAVING Log data!!!")
 
-def del_old() -> None:
+def del_old(today) -> None:
     """ Checks for log files older than 7 days and deletes them."""
     current_directory = os.curdir
     log_directory = os.path.relpath('/logs', current_directory)
+    os.chdir(log_directory)
+    contents = os.listdir()
+    
+    cutoff = today - timedelta(days=7)
+
+    for d in contents:
+        
 
 def process_logs(buffer) -> None:
     """ Continuously reads the buffer and writes all entries to disk. """
@@ -41,10 +48,10 @@ def process_logs(buffer) -> None:
             entry = f"{log['time']} | {log['user']} | {log['action']}\n"
 
             # Determine file name for current day's log
-            date = dt.now()
-            year = date.year
-            month = date.month
-            day = date.day
+            today = dt.now()
+            year = today.year
+            month = today.month
+            day = today.day
             file_name = f"{month}/{day}/{year}.log"
 
             # Make the entry into the log file
@@ -52,7 +59,7 @@ def process_logs(buffer) -> None:
                 f.write(entry)
 
             # Check for old logs and delete them
-            del_old()
+            del_old(today)
 
 
 
