@@ -2083,14 +2083,34 @@ def main():
 
         # --- VIEW LOGS ---
         elif (choice == '9') and (logged_in_user['u_name'] == 'admin'):
-            pass
+            log_event(pipe, logged_in_user['u_name'], 'ACCESSED SYSTEM LOGS')
 
-        # --- DELETE LOGS ---
+            print("""\n
+                        CHOOSE A DAY'S LOG TO VIEW:
+                        ---------------------------------------------
+                        0) TODAY
+                        1) YESTERDAY
+                        2) LOGS FROM THE DATE 2 DAYS AGO
+                        3) LOGS FROM THE DATE 3 DAYS AGO
+                        4) LOGS FROM THE DATE 4 DAYS AGO
+                        5) LOGS FROM THE DATE 5 DAYS AGO
+                        6) LOGS FROM THE DATE 6 DAYS AGO         
+                        \n""")
+
+            past = int(input("Enter your day number: "))
+            message = {'action': 'view', 'days_past': past}
+            pipe.send('log', message)
+            report = pipe.receive()
+            print(report)
+            input("\nPress 'Enter' to continue...\n")
+
+            # --- DELETE LOGS ---
         elif (choice == '10') and (logged_in_user['u_name'] == 'admin'):
             pass
 
         # --- INVALID CHOICE ---
         else:
+            log_event(pipe, logged_in_user['u_name'], 'ENTERED AN INVALID MENU OPTION')
             print("INVALID CHOICE! PLEASE CHOOSE FROM VALID OPTIONS \n")
             continue
 
