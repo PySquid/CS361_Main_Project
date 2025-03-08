@@ -1058,7 +1058,6 @@ def ShowMenu(choice, help_level=2):
             7)  Delete a Book
             8)  Delete user account
             9)  View Logs
-            10) Delete Logs		            
 
             # Help
             # Return
@@ -2105,8 +2104,6 @@ def main():
             input("\nPress 'Enter' to continue...\n")
 
             # --- DELETE LOGS ---
-        elif (choice == '10') and (logged_in_user['u_name'] == 'admin'):
-            pass
 
         # --- INVALID CHOICE ---
         else:
